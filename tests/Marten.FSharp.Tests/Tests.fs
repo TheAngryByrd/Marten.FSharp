@@ -60,8 +60,14 @@ module TestHelpers =
             member x.Dispose() = 
                 dropDatabase (superConn |> string) databaseName
 
+let getEnv str =
+    System.Environment.GetEnvironmentVariable str
 
-let superUserConnStr () = TestHelpers.createConnString "localhost" "jimmybyrd" "postgres" "postgres"
+let host () = getEnv "POSTGRES_HOST"
+let user () = getEnv "POSTGRES_USER"
+let pass () = getEnv "POSTGRES_DB"
+let db () = getEnv "POSTGRES_DB"
+let superUserConnStr () = TestHelpers.createConnString (host ()) (user ()) (pass()) (db())
 
 let getNewDatabase () = superUserConnStr () |>  TestHelpers.DisposableDatabase.Create
 
