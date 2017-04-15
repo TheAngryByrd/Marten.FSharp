@@ -13,15 +13,6 @@ module TestHelpers =
         conn.Open()
         cmd.ExecuteNonQuery()
         
-
-    let execNonQueryAsync connStr commandStr = async {
-
-        use conn = new NpgsqlConnection(connStr)
-        use cmd = new NpgsqlCommand(commandStr,conn)
-        do! conn.OpenAsync() |> Async.AwaitTask
-        return! cmd.ExecuteNonQueryAsync() |> Async.AwaitTask
-    }
-
     let createDatabase connStr databaseName =
         databaseName
         |> sprintf "CREATE database \"%s\" ENCODING = 'UTF8'"
@@ -284,7 +275,7 @@ module FSharp_Tests =
             Assert.Equal(length,dogs.Count)
 
         [<Fact>]
-        let ``Query toListAync`` () = async {
+        let ``Query toListAsync`` () = async {
             use database =  getNewDatabase ()
             use store = getStore database
             let length = 5

@@ -4,4 +4,4 @@
 
 [![Travis Badge](https://travis-ci.org/TheAngryByrd/Marten.FSharp.svg?branch=master)](https://travis-ci.org/TheAngryByrd/Marten.FSharp)
 
-Does the thing
+A set of FSharp wrappers around [Marten](https://github.com/JasperFx/marten) (Postgresql as a Document Database and Event Store for .Net Applications )

@@ -20,6 +20,7 @@ module AsyncExtensions =
 
 
 module Option =
+    /// Creates an option from a potentially null record type
     let ofNullableRecord record =
         if (record |> box |> isNull) then None else Some record
 
@@ -34,7 +35,7 @@ module Lambda =
     open Microsoft.FSharp.Linq
     open Microsoft.FSharp.Linq.RuntimeHelpers
     open Microsoft.FSharp.Linq.RuntimeHelpers.LeafExpressionConverter
-
+    
     let inline toLinq (expr : Expr<'a -> 'b>) =
         let call = expr |> QuotationToExpression  :?> MethodCallExpression
         let lambda = call.Arguments.[0] :?> LambdaExpression
