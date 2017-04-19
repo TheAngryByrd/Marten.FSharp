@@ -1,4 +1,23 @@
 <Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+      <Title>Marten.FSharp</Title>
+      <Description>A set of FSharp wrappers around Marten</Description>
+      <PackageTags>Marten, postgres, f#, fsharp</PackageTags>
+      <PackageProjectUrl>https://github.com/TheAngryByrd/Marten.FSharp</PackageProjectUrl>
+      <PackageLicenseUrl>https://github.com/TheAngryByrd/Marten.FSharp/blob/master/LICENSE.md</PackageLicenseUrl>
+      <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+      <RepositoryType>git</RepositoryType>
+      <Authors>Jimmy Byrd</Authors>
+      <RepositoryUrl>https://github.com/TheAngryByrd/Marten.FSharp</RepositoryUrl>
+      <!-- owners is not supported in MSBuild -->
+  </PropertyGroup>
+  <PropertyGroup>
+      <NeutralLanguage>en-US</NeutralLanguage>
+      <AssemblyTitle>Marten.FSharp</AssemblyTitle>
+      <projectUrl></projectUrl>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFrameworks>netstandard1.6;net46</TargetFrameworks>
   </PropertyGroup>
