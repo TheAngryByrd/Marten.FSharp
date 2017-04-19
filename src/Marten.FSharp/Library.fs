@@ -35,15 +35,21 @@ module Lambda =
     open Microsoft.FSharp.Linq
     open Microsoft.FSharp.Linq.RuntimeHelpers
     open Microsoft.FSharp.Linq.RuntimeHelpers.LeafExpressionConverter
-    
-    let inline toLinq (expr : Expr<'a -> 'b>) =
-        let call = expr |> QuotationToExpression  :?> MethodCallExpression
-        let lambda = call.Arguments.[0] :?> LambdaExpression
-        Expression.Lambda<Func<'a, 'b>>(lambda.Body, lambda.Parameters) 
-    // let inline toLinq2 (expr : Expr<'a -> 'b -> 'c>) =
-    //     let call = expr |> QuotationToExpression  :?> MethodCallExpression
-    //     let lambda = call.Arguments.[0] :?> LambdaExpression
-    //     Expression.Lambda<Func<'a, 'b, 'c>>(lambda.Body, lambda.Parameters) 
+    let rec translateExpr (linq:Expression) = 
+        match linq with
+        | :? MethodCallExpression as mc ->
+            let le = mc.Arguments.[0] :?> LambdaExpression
+            let args, body = translateExpr le.Body
+            le.Parameters.[0] :: args, body
+        | _ -> [], linq
+
+    let inline toLinq<'a> expr =
+        let args, body = expr |> QuotationToExpression  |> translateExpr
+        Expression.Lambda<'a>(body, args |> Array.ofList) 
+    let inline ofArity1 (expr : Expr<'a -> 'b>) =
+        toLinq<Func<'a,'b>> expr
+    let inline ofArity2 (expr : Expr<'a -> 'b -> 'c>) =
+        toLinq<Func<'a,'b,'c>> expr
 
     
 
@@ -67,6 +73,7 @@ module FSharp =
         |> Option.ofNullableRecord
 
     let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) = async {
+        
         let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
         return result |> Option.ofNullableRecord
     }
@@ -80,13 +87,31 @@ module FSharp =
         return result |> Option.ofNullableRecord
     }
    
-    let query<'a> (session : IDocumentSession) =
-        session.Query<'a>()
 
-    module Linq = 
+    let saveChanges (session : IDocumentSession) =
+        session.SaveChanges()
+
+    let saveChangesAsync (session : IDocumentSession) =
+        session.SaveChangesAsync() |> Async.AwaitTask
+
+
+    module Doc = 
 
         open System.Linq
         open Marten.Linq
+
+        // not supported
+        // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
+        //     f
+        //     |> Lambda.ofArity2
+        //     |> q.Aggregate
+
+        // let fold (seed :'a) (f : Quotations.Expr<'a -> 'b -> 'a>) (q : IQueryable<'b>) =
+        //     q.Aggregate(
+        //         seed, 
+        //         f|> Lambda.ofArity2)
+        let query<'a> (session : IDocumentSession) =
+            session.Query<'a>()
 
         let exactlyOne (q : IQueryable<'a>) = q.Single()
         let exactlyOneAsync (q : IQueryable<'a>) = 
@@ -95,7 +120,7 @@ module FSharp =
 
         let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
             f  
-            |> Lambda.toLinq
+            |> Lambda.ofArity1
             |> q.Where
 
         let head (q : IQueryable<'a>) = q.First()
@@ -106,7 +131,7 @@ module FSharp =
 
         let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
             f  
-            |> Lambda.toLinq
+            |> Lambda.ofArity1
             |> q.Select
 
         let toList (q : IQueryable<'a>) =

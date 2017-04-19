@@ -56,7 +56,7 @@ let getEnv str =
 
 let host () = getEnv "POSTGRES_HOST"
 let user () = getEnv "POSTGRES_USER"
-let pass () = getEnv "POSTGRES_DB"
+let pass () = getEnv "POSTGRES_PASS"
 let db () = getEnv "POSTGRES_DB"
 let superUserConnStr () = TestHelpers.createConnString (host ()) (user ()) (pass()) (db())
 
@@ -138,7 +138,6 @@ module FSharp_Tests =
     module Linq_Tests =
         open System.Linq
         open Marten.Linq
-        open Marten.FSharp.Linq
 
 
         [<Fact>]
@@ -150,8 +149,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dog2 =
                 session
-                |> query<Dog>
-                |> exactlyOne 
+                |> Doc.query<Dog>
+                |> Doc.exactlyOne 
 
             Assert.Equal(dog,dog2)
 
@@ -164,10 +163,11 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             Assert.Throws<System.InvalidOperationException>(
                 fun () -> session
-                            |> query<Dog>
-                            |> exactlyOne 
+                            |> Doc.query<Dog>
+                            |> Doc.exactlyOne 
                             |> ignore
                 )
+
 
 
         [<Fact>]
@@ -180,9 +180,9 @@ module FSharp_Tests =
 
             let dog2 =
                 session
-                |> query<Dog>
-                |> filter(<@fun d -> d.Name = "Spark" @> )
-                |> head 
+                |> Doc.query<Dog>
+                |> Doc.filter(<@fun d -> d.Name = "Spark" @> )
+                |> Doc.head 
 
             Assert.Equal(dog,dog2)
 
@@ -195,8 +195,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dog2 =
                 session
-                |> query<Dog>
-                |> head 
+                |> Doc.query<Dog>
+                |> Doc.head 
 
             Assert.Equal(dog,dog2)
 
@@ -211,8 +211,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dog2 =
                 session
-                |> query<Dog>
-                |> head 
+                |> Doc.query<Dog>
+                |> Doc.head 
 
             Assert.Equal(dog,dog2)
 
@@ -225,9 +225,9 @@ module FSharp_Tests =
             
             let dog2Name =
                 session
-                |> query<Dog>
-                |> map(<@fun s -> s.Name@> )
-                |> head
+                |> Doc.query<Dog>
+                |> Doc.map(<@fun s -> s.Name@> )
+                |> Doc.head
             
             Assert.Equal(dog.Name,dog2Name)
 
@@ -240,8 +240,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dog2 =
                 session
-                |> query<Dog>
-                |> tryHead 
+                |> Doc.query<Dog>
+                |> Doc.tryHead 
 
             Assert.Equal(None,dog2)
 
@@ -254,8 +254,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dog2 =
                 session
-                |> query<Dog>
-                |> tryHead 
+                |> Doc.query<Dog>
+                |> Doc.tryHead 
             Assert.Equal(Some dog,dog2)
 
         [<Fact>]
@@ -269,8 +269,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let dogs =
                 session
-                |> query<Dog>
-                |> toList
+                |> Doc.query<Dog>
+                |> Doc.toList
 
             Assert.Equal(length,dogs.Count)
 
@@ -285,8 +285,8 @@ module FSharp_Tests =
             use session = store.OpenSession() 
             let! dogs =
                 session
-                |> query<Dog>
-                |> toListAsync
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
 
             Assert.Equal(length,dogs.Count)
         }
