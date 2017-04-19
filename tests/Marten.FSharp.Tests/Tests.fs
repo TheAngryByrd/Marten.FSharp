@@ -73,7 +73,7 @@ type Dog = {
 }
 
 let newDog name favoriteChewToy =
-     { Id = Guid.NewGuid(); Name = "Spark"; FavoriteChewToy = "Macbook"}
+     { Id = Guid.NewGuid(); Name = name; FavoriteChewToy = favoriteChewToy}
 
 
 let saveDog  (store : IDocumentStore) (dog : Dog) =
