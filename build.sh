@@ -95,5 +95,4 @@ fi
 
 run $FAKE_EXE "$@" $FSIARGS $FSIARGS2 build.fsx
 
-pkill -P $$
-# kill $
+pkill -P $$ > /dev/null
