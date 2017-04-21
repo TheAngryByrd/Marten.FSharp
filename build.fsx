@@ -48,7 +48,21 @@ Target "DotnetBuild" (fun _ ->
             }) 
 ))
 
+let whoami () =
+    let result =
+        ExecProcessAndReturnMessages (fun s -> s.FileName <- "whoami") (TimeSpan.FromSeconds(1.))
+    result.Messages |> Seq.head
+
 Target "DotnetTest" (fun _ ->
+    //if environment variables aren't set, assume defaults
+    if not <| getEnvironmentVarAsBool "POSTGRES_HOST" then
+        setEnvironVar "POSTGRES_HOST" "localhost"
+        //Postgres.app on osx default user is the person, not postgres
+        setEnvironVar "POSTGRES_USER" (if isMacOS then (whoami ()) else "postgres")
+        setEnvironVar "POSTGRES_PASS" "postgres"
+        setEnvironVar "POSTGRES_DB" "postgres"
+         
+
     !! testsGlob
     |> Seq.iter (fun proj ->
         DotNetCli.Test (fun c ->

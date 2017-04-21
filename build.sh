@@ -78,5 +78,22 @@ run $PAKET_EXE restore
 
 [ ! -e build.fsx ] && run $PAKET_EXE update
 [ ! -e build.fsx ] && run $FAKE_EXE init.fsx
+
+
+if lsof -ti :5432 > /dev/null
+then 
+   echo "postgres already started"
+else 
+  echo "starting postgres"
+  rm -rf data/
+  initdb -D data/
+  postgres -D data &
+fi
+
+
+
+
 run $FAKE_EXE "$@" $FSIARGS $FSIARGS2 build.fsx
 
+pkill -P $$
+kill $
