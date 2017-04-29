@@ -148,18 +148,6 @@ Target "WatchTests" (fun _ ->
         ()
 )
 
-// Target "DotnetTest" (fun _ ->
-
-         
-
-//     !! testsGlob
-//     |> Seq.iter (fun proj ->
-//         DotNetCli.Test (fun c ->
-//             { c with
-//                 Project = proj
-//                 WorkingDir = IO.Path.GetDirectoryName proj
-//             }) 
-// ))
 
 Target "DotnetPack" (fun _ ->
     !! srcGlob
