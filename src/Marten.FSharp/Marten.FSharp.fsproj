@@ -28,7 +28,7 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)'=='net45'">
+  <ItemGroup Condition="'$(TargetFramework)'=='net46'">
     <PackageReference Include="FSharp.Core" Version="4.0.0.*" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard1.6'">
