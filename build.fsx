@@ -53,7 +53,42 @@ let whoami () =
         ExecProcessAndReturnMessages (fun s -> s.FileName <- "whoami") (TimeSpan.FromSeconds(1.))
     result.Messages |> Seq.head
 
-Target "DotnetTest" (fun _ ->
+
+
+let invoke f = f ()
+let invokeAsync f = async { f () }
+
+type TargetFramework =
+| Full of string
+| Core of string
+
+let getTargetFramework tf =
+    match tf with
+    | "net45" | "net451" | "net452" 
+    | "net46" | "net461" | "net462" -> 
+        Full tf
+    | "netcoreapp1.0" | "netcoreapp1.1" -> 
+        Core tf
+    | _ -> failwithf "Unknown TargetFramework %s" tf
+
+let getTargetFrameworksFromProjectFile (projFile : string)=
+    let doc = Xml.XmlDocument()
+    doc.Load(projFile)
+    doc.GetElementsByTagName("TargetFrameworks").[0].InnerText.Split(';')
+    |> Seq.map getTargetFramework
+    |> Seq.toList
+
+let selectRunnerForFramework tf =
+    let runMono = sprintf "mono -f %s -c Release" 
+    let runCore = sprintf "run -f %s -c Release"
+    match tf with
+    | Full t when isMono-> runMono t
+    | Full t -> runCore t
+    | Core t -> runCore t
+        
+
+
+let setPostgresEnvVars () =
     //if environment variables aren't set, assume defaults
     if not <| getEnvironmentVarAsBool "POSTGRES_HOST" then
         setEnvironVar "POSTGRES_HOST" "localhost"
@@ -61,16 +96,70 @@ Target "DotnetTest" (fun _ ->
         setEnvironVar "POSTGRES_USER" (if isMacOS then (whoami ()) else "postgres")
         setEnvironVar "POSTGRES_PASS" "postgres"
         setEnvironVar "POSTGRES_DB" "postgres"
+        
+let runTests modifyArgs =
+    setPostgresEnvVars ()
+    
+    !! testsGlob
+    |> Seq.map(fun proj -> proj, getTargetFrameworksFromProjectFile proj)
+    |> Seq.collect(fun (proj, targetFrameworks) ->
+        targetFrameworks
+        |> Seq.map selectRunnerForFramework
+        |> Seq.map(fun args -> fun () ->
+            DotNetCli.RunCommand (fun c ->
+            { c with
+                WorkingDir = IO.Path.GetDirectoryName proj
+            }) (modifyArgs args))
+    )
+
+
+
+Target "DotnetTest" (fun _ ->
+    runTests id
+    |> Seq.iter (invoke)
+)
+let execProcAndReturnMessages filename args =
+    let args' = args |> String.concat " "
+    ProcessHelper.ExecProcessAndReturnMessages 
+                (fun psi ->
+                    psi.FileName <- filename
+                    psi.Arguments <-args'
+                ) (TimeSpan.FromMinutes(1.))
+
+let pkill args =
+    execProcAndReturnMessages "pkill" args
+
+let killParentsAndChildren processId=
+    pkill [sprintf "-P %d" processId]
+
+
+Target "WatchTests" (fun _ ->
+    runTests (sprintf "watch %s")
+    |> Seq.iter (invokeAsync >> Async.Catch >> Async.Ignore >> Async.Start)
+
+    printfn "Press enter to stop..."
+    Console.ReadLine() |> ignore
+
+    if isWindows |> not then
+        startedProcesses
+        |> Seq.iter(fst >> killParentsAndChildren >> ignore )
+    else
+        //Hope windows handles this right?
+        ()
+)
+
+// Target "DotnetTest" (fun _ ->
+
          
 
-    !! testsGlob
-    |> Seq.iter (fun proj ->
-        DotNetCli.Test (fun c ->
-            { c with
-                Project = proj
-                WorkingDir = IO.Path.GetDirectoryName proj
-            }) 
-))
+//     !! testsGlob
+//     |> Seq.iter (fun proj ->
+//         DotNetCli.Test (fun c ->
+//             { c with
+//                 Project = proj
+//                 WorkingDir = IO.Path.GetDirectoryName proj
+//             }) 
+// ))
 
 Target "DotnetPack" (fun _ ->
     !! srcGlob
