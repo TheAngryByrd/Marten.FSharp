@@ -394,6 +394,72 @@ let headTests = [
 ]
 
 
+let toListTests = [
+    testCase', "toList, single dog, get single back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.contains actualDogs expectedDog "Should contain same dog!"
+        }
+    testCase', "toList, multiple dogs, get multple back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            let expectedDog2 = saveDog' store
+            use session = store.OpenSession() 
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.contains actualDogs expectedDog "Should contain same dog!"
+            Expect.contains actualDogs expectedDog2 "Should contain same dog!"
+        }
+    testCase', "toList, no dogs, get empty list" ,
+        fun db store -> async {
+            use session = store.OpenSession() 
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.isEmpty actualDogs "Should be no dogs!"
+        }
+    testCaseAsync', "toListAsync, single dog, get single back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
+            Expect.contains actualDogs expectedDog "Should contain same dog!"
+        }
+    testCaseAsync', "toListAsync, multiple dogs, get multple back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            let expectedDog2 = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
+            Expect.contains actualDogs expectedDog "Should contain same dog!"
+            Expect.contains actualDogs expectedDog2 "Should contain same dog!"
+        }
+    testCaseAsync', "toListAsync, no dogs, get empty list" ,
+        fun db store -> async {
+            use session = store.OpenSession() 
+            let! actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
+            Expect.isEmpty actualDogs "Should be no dogs!"
+        }
+]
+
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
@@ -403,6 +469,6 @@ let ``API Tests`` =
             yield! filterTests
             yield! mapTests
             yield! headTests
- 
+            yield! toListTests
         ]
     ]
