@@ -53,9 +53,14 @@ module Lambda =
 
     
 
-module FSharp =
 
+
+module Doc = 
     open Marten
+    open System.Linq
+    open Marten.Linq
+
+
     let deleteEntity (entity : 'a) (session : IDocumentSession) =
         session.Delete<'a>(entity)
     let deleteByGuid<'a> (id : Guid) (session : IDocumentSession) =
@@ -86,7 +91,7 @@ module FSharp =
         let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
         return result |> Option.ofNullableRecord
     }
-   
+
 
     let saveChanges (session : IDocumentSession) =
         session.SaveChanges()
@@ -95,66 +100,65 @@ module FSharp =
         session.SaveChangesAsync() |> Async.AwaitTask
 
 
-    module Doc = 
+    // not supported
+    // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
+    //     f
+    //     |> Lambda.ofArity2
+    //     |> q.Aggregate
 
-        open System.Linq
-        open Marten.Linq
+    // let fold (seed :'a) (f : Quotations.Expr<'a -> 'b -> 'a>) (q : IQueryable<'b>) =
+    //     q.Aggregate(
+    //         seed, 
+    //         f|> Lambda.ofArity2)
+    let query<'a> (session : IDocumentSession) =
+        session.Query<'a>()
 
-        // not supported
-        // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
-        //     f
-        //     |> Lambda.ofArity2
-        //     |> q.Aggregate
+    let exactlyOne (q : IQueryable<'a>) = q.Single()
+    let exactlyOneAsync (q : IQueryable<'a>) = 
+        q.SingleAsync()
+        |> Async.AwaitTask
 
-        // let fold (seed :'a) (f : Quotations.Expr<'a -> 'b -> 'a>) (q : IQueryable<'b>) =
-        //     q.Aggregate(
-        //         seed, 
-        //         f|> Lambda.ofArity2)
-        let query<'a> (session : IDocumentSession) =
-            session.Query<'a>()
+    let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
+        f  
+        |> Lambda.ofArity1
+        |> q.Where
 
-        let exactlyOne (q : IQueryable<'a>) = q.Single()
-        let exactlyOneAsync (q : IQueryable<'a>) = 
-            q.SingleAsync()
-            |> Async.AwaitTask
+    let head (q : IQueryable<'a>) = q.First()
 
-        let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
-            f  
-            |> Lambda.ofArity1
-            |> q.Where
+    let headAsync (q : IQueryable<'a>) = 
+        q.FirstAsync() 
+        |> Async.AwaitTask
 
-        let head (q : IQueryable<'a>) = q.First()
+    let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
+        f  
+        |> Lambda.ofArity1
+        |> q.Select
 
-        let headAsync (q : IQueryable<'a>) = 
-            q.FirstAsync() 
-            |> Async.AwaitTask
+    let storeSingle (session : IDocumentSession) entity  =
+        session.Store([|entity|])
+    let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
+        entities |> Seq.toArray |> session.Store
+    let toList (q : IQueryable<'a>) =
+        q.ToList()
 
-        let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-            f  
-            |> Lambda.ofArity1
-            |> q.Select
+    let toListAsync (q : IQueryable<'a>) =
+        q.ToListAsync()
+        |> Async.AwaitTask
 
-        let toList (q : IQueryable<'a>) =
-            q.ToList()
+    let tryExactlyOne (q : IQueryable<'a>) = 
+        q.SingleOrDefault()
+        |> Option.ofNullableRecord
+    let tryExactlyOneAsync (q : IQueryable<'a>) = 
+        q.SingleOrDefaultAsync()
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
 
-        let toListAsync (q : IQueryable<'a>) =
-            q.ToListAsync()
-            |> Async.AwaitTask
+    let tryHead (q : IQueryable<'a>) = 
+        q.FirstOrDefault() 
+        |> Option.ofNullableRecord
+    let tryHeadAsync (q : IQueryable<'a>) = 
+        q.FirstOrDefaultAsync() 
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
 
-        let tryExactlyOne (q : IQueryable<'a>) = 
-            q.SingleOrDefault()
-            |> Option.ofNullableRecord
-        let tryExactlyOneAsync (q : IQueryable<'a>) = 
-            q.SingleOrDefaultAsync()
-            |> Async.AwaitTask
-            |> Async.map Option.ofNullableRecord
-
-        let tryHead (q : IQueryable<'a>) = 
-            q.FirstOrDefault() 
-            |> Option.ofNullableRecord
-        let tryHeadAsync (q : IQueryable<'a>) = 
-            q.FirstOrDefaultAsync() 
-            |> Async.AwaitTask
-            |> Async.map Option.ofNullableRecord
-
-            
+        
