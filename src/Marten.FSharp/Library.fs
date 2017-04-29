@@ -134,6 +134,10 @@ module Doc =
         |> Lambda.ofArity1
         |> q.Select
 
+    let storeSingle (session : IDocumentSession) entity  =
+        session.Store([|entity|])
+    let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
+        entities |> Seq.toArray |> session.Store
     let toList (q : IQueryable<'a>) =
         q.ToList()
 

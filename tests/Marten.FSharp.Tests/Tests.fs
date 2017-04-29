@@ -34,7 +34,7 @@ open Marten
 open Marten.Linq
 open Npgsql
 
-module TestHelpers =
+module DatabaseTestHelpers =
     let execNonQuery connStr commandStr =
         use conn = new NpgsqlConnection(connStr)
         use cmd = new NpgsqlCommand(commandStr,conn)
@@ -79,18 +79,18 @@ module TestHelpers =
             member x.Dispose() = 
                 dropDatabase (superConn |> string) databaseName
 
-let getEnv str =
-    System.Environment.GetEnvironmentVariable str
+    let getEnv str =
+        System.Environment.GetEnvironmentVariable str
 
-let host () = getEnv "POSTGRES_HOST"
-let user () = getEnv "POSTGRES_USER"
-let pass () = getEnv "POSTGRES_PASS"
-let db () = getEnv "POSTGRES_DB"
-let superUserConnStr () = TestHelpers.createConnString (host ()) (user ()) (pass()) (db())
+    let host () = getEnv "POSTGRES_HOST"
+    let user () = getEnv "POSTGRES_USER"
+    let pass () = getEnv "POSTGRES_PASS"
+    let db () = getEnv "POSTGRES_DB"
+    let superUserConnStr () = createConnString (host ()) (user ()) (pass()) (db())
 
-let getNewDatabase () = superUserConnStr () |>  TestHelpers.DisposableDatabase.Create
+    let getNewDatabase () = superUserConnStr () |>  DisposableDatabase.Create
 
-let getStore (database : TestHelpers.DisposableDatabase) = database.Conn |> string |> DocumentStore.For
+    let getStore (database : DisposableDatabase) = database.Conn |> string |> DocumentStore.For
 
 
 [<CLIMutable>]
@@ -112,7 +112,7 @@ let saveDog' (store : IDocumentStore)  =
     let dog = newDog "Spark" "Macbook"
     saveDog store dog
 
-open TestHelpers
+open DatabaseTestHelpers
 
 let withDatabase f () =
     use database =  getNewDatabase ()
@@ -163,46 +163,7 @@ let inline testCaseAsync' name (test : unit -> Async<unit>) =
 
 
 
-let loadByGuidTests =   [
-    testCase', "loadByGuid, Get Some Record back" ,
-                fun db store -> async {
-                    let expectedDog = saveDog' store
-                    use session = store.OpenSession() 
-                    let actualDog =
-                        session
-                        |> Doc.loadByGuid<Dog> expectedDog.Id
-                    Expect.equal (Some expectedDog) actualDog  "Same dog!"
-                }
-    testCase', "loadByGuid, Get None Record back" ,
-        fun db store -> async {
-            let _ = saveDog' store
-            use session = store.OpenSession() 
-            let actualDog =
-                session
-                |> Doc.loadByGuid<Dog> (Guid.NewGuid())
-            Expect.equal None actualDog  "Should be no dog!"
-        }
-    testCaseAsync', "loadByGuidAsync, get Some record back",
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession() 
-            let! actualDog =
-                session
-                |> Doc.loadByGuidAsync<Dog> expectedDog.Id
 
-            Expect.equal (Some expectedDog) actualDog  "Same dog!"
-        }
-    testCaseAsync', "loadByGuidAsync, get None record back",
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession() 
-            let! actualDog =
-                session
-                |> Doc.loadByGuidAsync<Dog> (Guid.NewGuid())
-
-            Expect.equal None actualDog  "Should be no dog!"
-        }
-    ]
 
 let exactlyOnceTests = [
     testCase', "exactlyOne, Get Record Back" ,
@@ -460,15 +421,132 @@ let toListTests = [
 ]
 
 
+let CRUDTests = [
+    testCase', "loadByGuid, Get Some Record back" ,
+                fun db store -> async {
+                    let expectedDog = saveDog' store
+                    use session = store.OpenSession() 
+                    let actualDog =
+                        session
+                        |> Doc.loadByGuid<Dog> expectedDog.Id
+                    Expect.equal (Some expectedDog) actualDog  "Same dog!"
+                }
+    testCase', "loadByGuid, Get None Record back" ,
+        fun db store -> async {
+            let _ = saveDog' store
+            use session = store.OpenSession() 
+            let actualDog =
+                session
+                |> Doc.loadByGuid<Dog> (Guid.NewGuid())
+            Expect.equal None actualDog  "Should be no dog!"
+        }
+    testCaseAsync', "loadByGuidAsync, get Some record back",
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDog =
+                session
+                |> Doc.loadByGuidAsync<Dog> expectedDog.Id
+
+            Expect.equal (Some expectedDog) actualDog  "Same dog!"
+        }
+    testCaseAsync', "loadByGuidAsync, get None record back",
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDog =
+                session
+                |> Doc.loadByGuidAsync<Dog> (Guid.NewGuid())
+
+            Expect.equal None actualDog  "Should be no dog!"
+        }
+    testCase', "storeSingle/saveChanges" ,
+        fun db (store : #IDocumentStore) -> async {
+            let sparky = newDog "Sparky" "Shoes"
+
+            use session = store.OpenSession() 
+            sparky |> Doc.storeSingle session
+            session |> Doc.saveChanges
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.contains actualDogs sparky "Should contain same dog!"
+
+        }
+    testCase', "storeMany/delete/saveChanges" ,
+        fun db (store : #IDocumentStore) -> async {
+            let sparky = newDog "Sparky" "Shoes"
+            let spot = newDog "Spot" "Macbook"
+
+            use session = store.OpenSession() 
+            [sparky ; spot] |> Doc.storeMany session
+            session |> Doc.saveChanges
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.contains actualDogs sparky "Should contain same dog!"
+            Expect.contains actualDogs spot "Should contain same dog!"
+
+            session |> Doc.deleteEntity spot
+            session |> Doc.saveChanges
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.contains actualDogs sparky "Should contain same dog!"
+           
+            session |> Doc.deleteByGuid<Dog> sparky.Id
+            session |> Doc.saveChanges
+            let actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toList 
+            Expect.isEmpty actualDogs "Should be no more dogs"
+
+        }
+    testCaseAsync', "storeSingle/saveChangesAsync" ,
+        fun db (store : #IDocumentStore) -> async {
+            let sparky = newDog "Sparky" "Shoes"
+
+            use session = store.OpenSession() 
+            sparky |> Doc.storeSingle session
+            do! session |> Doc.saveChangesAsync
+            let! actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
+            Expect.contains actualDogs sparky "Should contain same dog!"
+
+        }
+    testCaseAsync', "storeMany/saveChangesAsync" ,
+        fun db (store : #IDocumentStore) -> async {
+            let sparky = newDog "Sparky" "Shoes"
+            let spot = newDog "Spot" "Macbook"
+
+            use session = store.OpenSession() 
+            [sparky ; spot] |> Doc.storeMany session
+            do! session |> Doc.saveChangesAsync
+            let! actualDogs =
+                session
+                |> Doc.query<Dog>
+                |> Doc.toListAsync
+            Expect.contains actualDogs sparky "Should contain same dog!"
+            Expect.contains actualDogs spot "Should contain same dog!"
+
+        }
+]
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
         yield! testFixture' withDatabaseAndStore [
-            yield! loadByGuidTests
             yield! exactlyOnceTests
             yield! filterTests
             yield! mapTests
             yield! headTests
             yield! toListTests
+            yield! CRUDTests
         ]
     ]
