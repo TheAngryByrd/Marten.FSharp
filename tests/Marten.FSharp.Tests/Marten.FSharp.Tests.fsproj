@@ -14,11 +14,17 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='netcoreapp1.1'">
     <PackageReference Include="FSharp.Core" Version="4.1.*" />
+    <!--<PackageReference Include="Microsoft.NETCore.Portable.Compatibility" Version="1.0.1" />-->
   </ItemGroup>
+  <!--<PropertyGroup Condition="'$(TargetFramework)'=='netcoreapp1.1'">
+    <PackageTargetFallback>portable-net45+win8+wp8+wpa81</PackageTargetFallback>
+  </PropertyGroup>-->
   <ItemGroup>
     <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
     <PackageReference Include="Marten" Version="1.5.*" />
     <PackageReference Include="Expecto" Version="5.0.0-*" />
+    <!--One day fscheck will work with .net core-->
+    <!--<PackageReference Include="Expecto.FsCheck" Version="5.0.0-*" />-->
     <ProjectReference Include="../../src/Marten.FSharp/Marten.FSharp.fsproj" />
     <DotNetCliToolReference Include="dotnet-mono" Version="*" />
     <DotNetCliToolReference Include="Microsoft.DotNet.Watcher.Tools" Version="1.0.0" />
