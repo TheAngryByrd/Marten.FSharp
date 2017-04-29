@@ -19,6 +19,12 @@ module Expecto =
             | e ->
                 ()
         }
+        let isType<'a> x message =
+            if x.GetType() <> typeof<'a> then
+                Tests.failtestf "%s. Expected x to be type %s, but was one of type %s."
+                                message
+                                (typeof<'a>.FullName)
+                                (x.GetType().FullName)
 
 open System
 open System.Linq
@@ -276,13 +282,127 @@ let exactlyOnceTests = [
         }
 ]
 
+let filterTests = [ 
+    testCase', "filter by, Get Record Back" ,
+            fun db store -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession() 
+                let actualDog =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.filter(<@fun d -> d.Name = "Spark" @> )
+                    |> Doc.head 
+                Expect.equal expectedDog actualDog  "Should be one dog!"
+            }
+]
+type User = {
+    Name : string
+}
+let mapTests = [ 
+    testCase', "map, Get Name Back" ,
+            fun db store -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession() 
+                let actualDog =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.map(<@fun s -> s.Name@> )
+                    |> Doc.head 
+                Expect.equal expectedDog.Name actualDog  "Should be one dog!"
+            }
+    testCase', "map to another type, Get User Back" ,
+            fun db store -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession() 
+                let actualUser =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.map(<@fun s -> { Name = s.Name }@> )
+                    |> Doc.head 
+                Expect.isType<User> (box actualUser) "Should be User type"
+                Expect.equal expectedDog.Name actualUser.Name  "Should be a user!"
+            }
+]
+
+let headTests = [
+    testCase', "head, single dog, Get Record Back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let actualDog =
+                session
+                |> Doc.query<Dog>
+                |> Doc.head 
+            Expect.equal expectedDog actualDog  "Should be a same dog!"
+        }
+    testCase', "head, multiple dogs, get top record back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            let _ = saveDog' store
+            use session = store.OpenSession() 
+            let actualDog =
+                session
+                |> Doc.query<Dog>
+                |> Doc.head 
+            Expect.equal expectedDog actualDog  "Should be a same dog!"
+        }
+    testCase', "head, no dogs, throws exception" ,
+        fun db store -> async {
+            Expect.throwsT<InvalidOperationException>(fun _ ->
+            use session = store.OpenSession() 
+            let actualDog =
+                session
+                    |> Doc.query<Dog>
+                    |> Doc.head
+            ()
+            ) "Should be no dog!"
+        }
+
+    testCaseAsync', "headAsync, single dog, Get Record Back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDog =
+                session
+                |> Doc.query<Dog>
+                |> Doc.headAsync
+            Expect.equal expectedDog actualDog  "Should be a same dog!"
+        }
+    testCaseAsync', "headAsync, multiple dogs, get top record back" ,
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            let _ = saveDog' store
+            use session = store.OpenSession() 
+            let! actualDog =
+                session
+                |> Doc.query<Dog>
+                |> Doc.headAsync
+            Expect.equal expectedDog actualDog  "Should be a same dog!"
+        }
+    testCaseAsync', "headAsync, no dogs, throws exception" ,
+        fun db store -> async {
+            do!
+                Expect.throwsTAsync<AggregateException>(async {
+                    use session = store.OpenSession() 
+                    let! actualDog =
+                        session
+                            |> Doc.query<Dog>
+                            |> Doc.headAsync
+                    ()
+                }) "Should be no dog!"
+        }
+]
+
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
         yield! testFixture' withDatabaseAndStore [
             yield! loadByGuidTests
             yield! exactlyOnceTests
-            
+            yield! filterTests
+            yield! mapTests
+            yield! headTests
  
         ]
     ]
