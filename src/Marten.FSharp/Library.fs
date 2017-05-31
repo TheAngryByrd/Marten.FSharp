@@ -65,9 +65,20 @@ module Doc =
         session.Delete<'a>(entity)
     let deleteByGuid<'a> (id : Guid) (session : IDocumentSession) =
         session.Delete<'a>(id)
+    let deleteByString<'a> (id : string) (session : IDocumentSession) =
+        session.Delete<'a>(id)
+    let deleteByInt<'a> (id : int) (session : IDocumentSession) =
+        session.Delete<'a>(id)
+
+    
+    let deleteByInt64<'a> (id : int64) (session : IDocumentSession) =
+        session.Delete<'a>(id)
 
         
     let loadByGuid<'a> (id : Guid) (session : IDocumentSession) =
+        session.Load<'a>(id)
+        |> Option.ofNullableRecord
+    let loadByInt<'a> (id : int) (session : IDocumentSession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
     let loadByInt64<'a> (id : int64) (session : IDocumentSession) =
