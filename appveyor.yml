@@ -7,3 +7,8 @@ version: 0.0.1.{build}
 artifacts:
   - path: bin
     name: bin
+services:
+  - postgresql95
+environment: 
+  POSTGRES_USER: postgres
+  POSTGRES_PASS: Password12!
