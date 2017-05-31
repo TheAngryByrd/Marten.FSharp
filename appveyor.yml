@@ -1,6 +1,7 @@
 init:
   - git config --global core.autocrlf input
 build_script:
+  - cmd: set POSTGRES_PASS=Password12!
   - cmd: build.cmd
 test: off
 version: 0.0.1.{build}
@@ -9,5 +10,5 @@ artifacts:
     name: bin
 services:
   - postgresql95
-environment: 
-  POSTGRES_PASS: "Password12!"
+# environment: 
+#   POSTGRES_PASS: "Password12!"
