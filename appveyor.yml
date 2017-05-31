@@ -1,7 +1,9 @@
 init:
   - git config --global core.autocrlf input
 build_script:
-  - cmd: build.cmd
+  - cmd: 
+    - set POSTGRES_PASS=Password12!
+    - build.cmd
 test: off
 version: 0.0.1.{build}
 artifacts:
