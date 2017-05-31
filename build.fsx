@@ -88,10 +88,11 @@ let selectRunnerForFramework tf =
         
 
 let setEnvToIfNotExist key value =
+    environVar key |> logfn "Env %s set to %s \n" key 
     if not <| getEnvironmentVarAsBool key then 
         setEnvironVar key value
-    environVar key |> logf "Env %s set to %s" key 
-
+    environVar key |> logfn "Env %s set to %s \n" key  
+ 
 
 let setPostgresEnvVars () =
     //if environment variables aren't set, assume defaults
