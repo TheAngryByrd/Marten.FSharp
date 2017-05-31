@@ -14,5 +14,5 @@ MacOS/Linux | Windows
 
 Stable | Prerelease
 --- | ---
-[![NuGet Badge](https://buildstats.info/nuget//Marten.FSharp)](https://www.nuget.org/packages//Marten.FSharp/) | [![NuGet Badge](https://buildstats.info/nuget//Marten.FSharp?includePreReleases=true)](https://www.nuget.org/packages//Marten.FSharp/)
+[![NuGet Badge](https://buildstats.info/nuget/Marten.FSharp)](https://www.nuget.org/packages/Marten.FSharp/) | [![NuGet Badge](https://buildstats.info/nuget/Marten.FSharp?includePreReleases=true)](https://www.nuget.org/packages/Marten.FSharp/)
 
