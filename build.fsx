@@ -87,16 +87,20 @@ let selectRunnerForFramework tf =
     | Core t -> runCore t
         
 
+let setEnvToIfNotExist key value =
+    if not <| getEnvironmentVarAsBool key then 
+        setEnvironVar key value
+    environVar key |> logf "Env %s set to %s" key 
+
 
 let setPostgresEnvVars () =
     //if environment variables aren't set, assume defaults
-    if not <| getEnvironmentVarAsBool "POSTGRES_HOST" then
-        setEnvironVar "POSTGRES_HOST" "localhost"
-        //Postgres.app on osx default user is the person, not postgres
-        setEnvironVar "POSTGRES_USER" (if isMacOS then (whoami ()) else "postgres")
-        setEnvironVar "POSTGRES_PASS" "postgres"
-        setEnvironVar "POSTGRES_DB" "postgres"
-        
+    setEnvToIfNotExist "POSTGRES_HOST" "localhost"
+    //Postgres.app on osx default user is the person, not postgres
+    setEnvToIfNotExist "POSTGRES_USER" (if isMacOS then (whoami ()) else "postgres")
+    setEnvToIfNotExist "POSTGRES_PASS" "postgres"
+    setEnvToIfNotExist "POSTGRES_DB" "postgres"
+    
 let runTests modifyArgs =
     setPostgresEnvVars ()
     
