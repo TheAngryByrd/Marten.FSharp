@@ -10,5 +10,7 @@ artifacts:
 services:
   - postgresql95
 environment: 
+  POSTGRES_HOST: localhost
   POSTGRES_USER: postgres
   POSTGRES_PASS: Password12!
+  POSTGRES_HOST: postgres
