@@ -4,10 +4,10 @@ open System
 
 /// Useful functions for combining error handling computations with async computations.
 [<AutoOpen>]
-module AsyncExtensions = 
+module AsyncExtensions =
     /// Useful functions for combining error handling computations with async computations.
     [<RequireQualifiedAccess>]
-    module Async = 
+    module Async =
         /// Creates an async computation that return the given value
         let singleton = async.Return
 
@@ -35,7 +35,7 @@ module Lambda =
     open Microsoft.FSharp.Linq
     open Microsoft.FSharp.Linq.RuntimeHelpers
     open Microsoft.FSharp.Linq.RuntimeHelpers.LeafExpressionConverter
-    let rec translateExpr (linq:Expression) = 
+    let rec translateExpr (linq:Expression) =
         match linq with
         | :? MethodCallExpression as mc ->
             let le = mc.Arguments.[0] :?> LambdaExpression
@@ -45,17 +45,17 @@ module Lambda =
 
     let inline toLinq<'a> expr =
         let args, body = expr |> QuotationToExpression  |> translateExpr
-        Expression.Lambda<'a>(body, args |> Array.ofList) 
+        Expression.Lambda<'a>(body, args |> Array.ofList)
     let inline ofArity1 (expr : Expr<'a -> 'b>) =
         toLinq<Func<'a,'b>> expr
     let inline ofArity2 (expr : Expr<'a -> 'b -> 'c>) =
         toLinq<Func<'a,'b,'c>> expr
 
-    
 
 
 
-module Doc = 
+
+module Doc =
     open Marten
     open System.Linq
     open Marten.Linq
@@ -70,11 +70,11 @@ module Doc =
     let deleteByInt<'a> (id : int) (session : IDocumentSession) =
         session.Delete<'a>(id)
 
-    
+
     let deleteByInt64<'a> (id : int64) (session : IDocumentSession) =
         session.Delete<'a>(id)
 
-        
+
     let loadByGuid<'a> (id : Guid) (session : IDocumentSession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
@@ -89,11 +89,11 @@ module Doc =
         |> Option.ofNullableRecord
 
     let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) = async {
-        
+
         let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
         return result |> Option.ofNullableRecord
     }
-        
+
     let loadByInt64Async<'a> (id : int64) (session : IDocumentSession) = async {
         let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
         return result |> Option.ofNullableRecord
@@ -119,29 +119,29 @@ module Doc =
 
     // let fold (seed :'a) (f : Quotations.Expr<'a -> 'b -> 'a>) (q : IQueryable<'b>) =
     //     q.Aggregate(
-    //         seed, 
+    //         seed,
     //         f|> Lambda.ofArity2)
     let query<'a> (session : IDocumentSession) =
         session.Query<'a>()
 
     let exactlyOne (q : IQueryable<'a>) = q.Single()
-    let exactlyOneAsync (q : IQueryable<'a>) = 
+    let exactlyOneAsync (q : IQueryable<'a>) =
         q.SingleAsync()
         |> Async.AwaitTask
 
     let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
-        f  
+        f
         |> Lambda.ofArity1
         |> q.Where
 
     let head (q : IQueryable<'a>) = q.First()
 
-    let headAsync (q : IQueryable<'a>) = 
-        q.FirstAsync() 
+    let headAsync (q : IQueryable<'a>) =
+        q.FirstAsync()
         |> Async.AwaitTask
 
     let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        f  
+        f
         |> Lambda.ofArity1
         |> q.Select
 
@@ -156,20 +156,34 @@ module Doc =
         q.ToListAsync()
         |> Async.AwaitTask
 
-    let tryExactlyOne (q : IQueryable<'a>) = 
+    let tryExactlyOne (q : IQueryable<'a>) =
         q.SingleOrDefault()
         |> Option.ofNullableRecord
-    let tryExactlyOneAsync (q : IQueryable<'a>) = 
+    let tryExactlyOneAsync (q : IQueryable<'a>) =
         q.SingleOrDefaultAsync()
         |> Async.AwaitTask
         |> Async.map Option.ofNullableRecord
 
-    let tryHead (q : IQueryable<'a>) = 
-        q.FirstOrDefault() 
+    let tryHead (q : IQueryable<'a>) =
+        q.FirstOrDefault()
         |> Option.ofNullableRecord
-    let tryHeadAsync (q : IQueryable<'a>) = 
-        q.FirstOrDefaultAsync() 
+    let tryHeadAsync (q : IQueryable<'a>) =
+        q.FirstOrDefaultAsync()
         |> Async.AwaitTask
         |> Async.map Option.ofNullableRecord
 
-        
+    // let patch<'a> (id : Guid) (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (session : IDocumentSession) =
+    //     let func = Lambda.ofArity1 part
+    //     session.Patch<'a>(id).Set<'b>(func, newVal)
+
+    let patchInt<'a> (id : Guid) (f : Quotations.Expr<'T -> int>) (newVal : int) (session : IDocumentSession) =
+        let func = Lambda.ofArity1 f
+        session.Patch<'a>(id).Set(func, newVal)
+
+    let patchInt64<'a> (id : Guid) (f : Quotations.Expr<'T -> int64>) (newVal : int64) (session : IDocumentSession) =
+        let func = Lambda.ofArity1 f
+        session.Patch<'a>(id).Set(func, newVal)
+
+    let patchString<'a> (id : Guid) (f : Quotations.Expr<'T -> string>) (newVal : string) (session : IDocumentSession) =
+        let func = Lambda.ofArity1 f
+        session.Patch<'a>(id).Set(func, newVal)
