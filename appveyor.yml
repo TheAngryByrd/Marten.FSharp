@@ -1,4 +1,7 @@
 environment:
+  POSTGRES_PASS: "Password12!"
+  POSTGRES_PATH: C:\Program Files\PostgreSQL\9.5
+  PG_PLV8_EXTENSION_ZIP_FILENAME: pg95plv8jsbin_w64
 
 init:
   - git config --global core.autocrlf input
@@ -13,11 +16,6 @@ version: 0.0.1.{build}
 artifacts:
   - path: bin
     name: bin
-
-environment: 
-  POSTGRES_PASS: "Password12!"
-  POSTGRES_PATH: C:\Program Files\PostgreSQL\9.5
-  PG_PLV8_EXTENSION_ZIP_FILENAME: pg95plv8jsbin_w64
 
 services:
   - postgresql95
