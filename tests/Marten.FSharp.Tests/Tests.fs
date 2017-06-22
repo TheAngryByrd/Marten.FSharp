@@ -47,10 +47,6 @@ module DatabaseTestHelpers =
         |> execNonQuery connStr
         |> ignore
 
-    let createExtensionPLV8 connStr =
-        execNonQuery connStr "CREATE EXTENSION IF NOT EXISTS PLV8"
-        |> ignore
-
     let dropDatabase connStr databaseName =
         //kill out all connections
         databaseName
@@ -72,7 +68,6 @@ module DatabaseTestHelpers =
         static member Create(connStr) =
             let databaseName = System.Guid.NewGuid().ToString("n")
             createDatabase (connStr |> string) databaseName
-            createExtensionPLV8 (connStr |> string)
 
             new DisposableDatabase(connStr,databaseName)
         member x.SuperConn = superConn
