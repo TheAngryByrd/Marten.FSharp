@@ -172,18 +172,6 @@ module Doc =
         |> Async.AwaitTask
         |> Async.map Option.ofNullableRecord
 
-    // let patch<'a> (id : Guid) (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (session : IDocumentSession) =
-    //     let func = Lambda.ofArity1 part
-    //     session.Patch<'a>(id).Set<'b>(func, newVal)
-
-    let patchInt<'a> (id : Guid) (f : Quotations.Expr<'T -> int>) (newVal : int) (session : IDocumentSession) =
-        let func = Lambda.ofArity1 f
-        session.Patch<'a>(id).Set(func, newVal)
-
-    let patchInt64<'a> (id : Guid) (f : Quotations.Expr<'T -> int64>) (newVal : int64) (session : IDocumentSession) =
-        let func = Lambda.ofArity1 f
-        session.Patch<'a>(id).Set(func, newVal)
-
-    let patchString<'a> (id : Guid) (f : Quotations.Expr<'T -> string>) (newVal : string) (session : IDocumentSession) =
-        let func = Lambda.ofArity1 f
-        session.Patch<'a>(id).Set(func, newVal)
+    let patch<'a, 'b> (id : Guid) (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (session : IDocumentSession) =
+        let func = Lambda.ofArity1 part
+        session.Patch<'a>(id).Set<'b>(func, newVal)

@@ -487,7 +487,7 @@ let CRUDTests = [
             let a = saveDog store scooby
             use session = store.OpenSession()
 
-            Doc.patchString<Dog>(scooby.Id) <@ fun dog -> dog.FavoriteChewToy @> "Not Snack" session
+            Doc.patch<Dog, string>(scooby.Id) <@ fun dog -> dog.FavoriteChewToy @> "Not Snack" session
             Doc.saveChanges session
 
             let actualDog =
