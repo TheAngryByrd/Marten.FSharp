@@ -23,6 +23,9 @@ os:
 env:
   - POSTGRES_DB=postgres POSTGRES_USER=postgres POSTGRES_PASSWORD= POSTGRES_HOST=localhost
 
+before_install:
+  - sudo apt-get install postgresql-9.5-plv8
+
 before_script:
   # https://stackoverflow.com/questions/11584749/how-to-create-a-new-database-with-the-hstore-extension-already-installed
   - psql -d template1 -c 'create extension if not exists plv8;'
