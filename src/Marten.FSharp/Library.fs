@@ -48,6 +48,8 @@ module Lambda =
         Expression.Lambda<'a>(body, args |> Array.ofList)
     let inline ofArity1 (expr : Expr<'a -> 'b>) =
         toLinq<Func<'a,'b>> expr
+    let inline ofArity1WithCollection (expr : Expr<'a -> 'b>) =
+        toLinq<Func<'a, Collections.Generic.IEnumerable<'b>>> expr
     let inline ofArity2 (expr : Expr<'a -> 'b -> 'c>) =
         toLinq<Func<'a,'b,'c>> expr
 
@@ -172,6 +174,50 @@ module Doc =
         |> Async.AwaitTask
         |> Async.map Option.ofNullableRecord
 
-    let patch<'a, 'b> (id : Guid) (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (session : IDocumentSession) =
+    let count<'a> (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> q.Count
+    let min<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> q.Min
+    let max<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> q.Max
+    let orderBy<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> q.OrderBy
+    let orderByDescending<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> q.OrderByDescending
+    let thenBy (f : Quotations.Expr<'a -> 'b>) (oq : IOrderedQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> oq.ThenBy
+
+    let skip (amount : int) (q : IQueryable<'a>) =
+        q.Skip(amount)
+    let take (amount : int) (q : IQueryable<'a>) =
+        q.Take(amount)
+    let paging (skipped : int) (takeAmount : int) (q : IQueryable<'a>) =
+        q
+        |> skip skipped
+        |> take takeAmount
+
+    // PATCH.
+    let patch<'a> (id : Guid) (session : IDocumentSession) =
+        session.Patch<'a>(id)
+
+    let pSet<'a, 'b> (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (pExpr : Patching.IPatchExpression<'a>) =
         let func = Lambda.ofArity1 part
-        session.Patch<'a>(id).Set<'b>(func, newVal)
+        pExpr.Set<'b>(func, newVal)
+    let pInc<'a> (part : Quotations.Expr<'a -> int>) (pExpr : Patching.IPatchExpression<'a>) =
+        let func = Lambda.ofArity1 part
+        pExpr.Increment(func, 1)
+    let pIncPlural<'a> (part : Quotations.Expr<'a -> int>) inc (pExpr : Patching.IPatchExpression<'a>) =
+        let func = Lambda.ofArity1 part
+        pExpr.Increment(func, inc)
