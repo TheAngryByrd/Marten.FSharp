@@ -102,7 +102,7 @@ type Dog = {
 }
 
 let newDog name favoriteChewToy =
-     { Id = Guid.NewGuid(); Name = name; FavoriteChewToy = favoriteChewToy}
+     { Id = Guid.NewGuid(); Name = name; FavoriteChewToy = favoriteChewToy }
 
 let saveDog  (store : IDocumentStore) (dog : Dog) =
     use session = store.OpenSession()
@@ -252,7 +252,7 @@ let filterTests = [
                 let actualDog =
                     session
                     |> Doc.query<Dog>
-                    |> Doc.filter(<@fun d -> d.Name = "Spark" @> )
+                    |> Doc.filter <@fun d -> d.Name = "Spark" @>
                     |> Doc.head
                 Expect.equal expectedDog actualDog  "Should be one dog!"
             }
@@ -424,14 +424,14 @@ let toListTests = [
 
 let CRUDTests = [
     testCase', "loadByGuid, Get Some Record back" ,
-                fun db store -> async {
-                    let expectedDog = saveDog' store
-                    use session = store.OpenSession()
-                    let actualDog =
-                        session
-                        |> Doc.loadByGuid<Dog> expectedDog.Id
-                    Expect.equal (Some expectedDog) actualDog  "Same dog!"
-                }
+        fun db store -> async {
+            let expectedDog = saveDog' store
+            use session = store.OpenSession()
+            let actualDog =
+                session
+                |> Doc.loadByGuid<Dog> expectedDog.Id
+            Expect.equal (Some expectedDog) actualDog  "Same dog!"
+        }
     testCase', "loadByGuid, Get None Record back" ,
         fun db store -> async {
             let _ = saveDog' store
@@ -474,21 +474,6 @@ let CRUDTests = [
                 |> Doc.toList
             Expect.contains actualDogs sparky "Should contain same dog!"
 
-        }
-    testCase', "patchString",
-        fun db (store : #IDocumentStore) -> async {
-            let scooby = newDog "Scooby" "Snack"
-            let editedScooby = { scooby with FavoriteChewToy = "Not Snack" }
-            let a = saveDog store scooby
-            use session = store.OpenSession()
-
-            Doc.patch<Dog, string>(scooby.Id) <@ fun dog -> dog.FavoriteChewToy @> "Not Snack" session
-            Doc.saveChanges session
-
-            let actualDog =
-                session
-                |> Doc.loadByGuid<Dog> scooby.Id
-            Expect.equal (Some editedScooby) actualDog "Edited successfully"
         }
     testCase', "storeMany/delete/saveChanges" ,
         fun db (store : #IDocumentStore) -> async {
@@ -554,6 +539,174 @@ let CRUDTests = [
         }
 ]
 
+[<CLIMutableAttribute>]
+type Person = {
+    Id : Guid
+    Name : string
+    Age : int
+}
+
+let newPerson name age =
+    { Id = Guid.NewGuid (); Name = name; Age = age }
+
+let savePerson  (store : IDocumentStore) (person : Person) =
+    use session = store.OpenSession()
+    session.Store(person)
+    session.SaveChanges()
+    person
+
+let PatchTests = [
+    testCase', "patch and then set",
+        fun (db : DisposableDatabase) (store : DocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let edittedMarco = { marcoPolo with Age = 200 }
+            savePerson store marcoPolo |> ignore
+            use session = store.OpenSession()
+
+            session
+            |> Doc.patch<Person>(marcoPolo.Id)
+            |> Doc.pSet<Person, int> <@ fun dog -> dog.Age @> 200
+            Doc.saveChanges session
+
+            let actualMarco =
+                session
+                |> Doc.loadByGuid<Person> marcoPolo.Id
+            Expect.equal (Some edittedMarco) actualMarco "Edited successfully"
+        }
+    testCase', "patch and then increment",
+        fun db (store : #IDocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let edittedMarco1 = { marcoPolo with Age = 501 }
+            let edittedMarco3 = { marcoPolo with Age = 503 }
+            savePerson store marcoPolo |> ignore
+            use session = store.OpenSession()
+
+            session
+            |> Doc.patch<Person>(marcoPolo.Id)
+            |> Doc.pInc<Person> <@ fun marco -> marco.Age @>
+            Doc.saveChanges session
+
+            let actualMarco =
+                session
+                |> Doc.loadByGuid<Person> marcoPolo.Id
+            Expect.equal (Some edittedMarco1) actualMarco "Edited successfully"
+        }
+    testCase', "patch and then increment not by one",
+        fun db (store : #IDocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let edittedMarco3 = { marcoPolo with Age = 503 }
+            savePerson store marcoPolo |> ignore
+
+            use session = store.OpenSession()
+            session
+            |> Doc.patch<Person>(marcoPolo.Id)
+            |> Doc.pIncPlural<Person> <@ fun marco -> marco.Age @> 3
+            Doc.saveChanges session
+
+            let actualMarco =
+                session
+                |> Doc.loadByGuid<Person> marcoPolo.Id
+            Expect.equal (Some edittedMarco3) actualMarco "Edited successfully"
+        }
+]
+
+let LinQQueryTests = [
+    testCase', "count, min, and max",
+        fun db (store : #IDocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let niccoloPolo = newPerson "Niccolo Polo" 800
+            let maffeoPolo = newPerson "Maffeo Polo" 801
+            use session = store.OpenSession ()
+
+            Doc.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+            Doc.saveChanges session
+
+            let peopleCount =
+                session
+                |> Doc.query<Person>
+                |> Doc.count<Person> <@ fun person -> person.Age > 500 @>
+            Expect.equal 2 peopleCount "Should be the same"
+
+            let oldest =
+                session
+                |> Doc.query<Person>
+                |> Doc.max<Person, int> <@ fun person -> person.Age @>
+            Expect.equal maffeoPolo.Age oldest "Should be Maffeo Polo"
+
+            let youngest =
+                session
+                |> Doc.query<Person>
+                |> Doc.min<Person, int> <@ fun person -> person.Age @>
+            Expect.equal marcoPolo.Age youngest "Should be Marco Polo"
+        }
+    testCase', "paging (skip and take)",
+        fun db (store : #IDocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let niccoloPolo = newPerson "Niccolo Polo" 800
+            let maffeoPolo = newPerson "Maffeo Polo" 801
+            let magellan = newPerson "Ferdinand Magellan" 600
+            let columbus = newPerson "Christopher Columbus" 550
+            use session = store.OpenSession ()
+
+            let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+            let peopleGeneric = new System.Collections.Generic.List<Person>([ niccoloPolo; maffeoPolo; magellan ])
+
+            Doc.storeMany session people
+            Doc.saveChanges session
+
+            let paged =
+                session
+                |> Doc.query<Person>
+                |> Doc.paging 1 3
+                |> Doc.toList
+
+            Seq.zip peopleGeneric paged
+            |> fun x -> Seq.iter (fun (p, db) -> Expect.equal p db "Same people (paging)") x
+        }
+    testCase', "orderBy, orderByDescending, and thenBy",
+        fun db (store : #IDocumentStore) -> async {
+            let marcoPolo = newPerson "Marco Polo" 500
+            let niccoloPolo = newPerson "Niccolo Polo" 800
+            let maffeoPolo = newPerson "Maffeo Polo" 801
+            let magellan = newPerson "Ferdinand Magellan" 600
+            let columbus = newPerson "Christopher Columbus" 550
+            use session = store.OpenSession ()
+
+            let people =
+                [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+                |> List.sortBy (fun person -> person.Age)
+                |> fun x -> Collections.Generic.List<Person>(x)
+
+            let peopleReversed =
+                [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+                |> List.sortBy (fun person -> person.Age)
+                |> List.rev
+                |> fun x -> Collections.Generic.List<Person>(x)
+
+            Doc.storeMany session people
+            Doc.saveChanges session
+
+            let ordered =
+                session
+                |> Doc.query<Person>
+                |> Doc.orderBy<Person, int> <@ fun person -> person.Age @>
+                |> Doc.toList
+
+            // Expect.equal people ordered "Same people."
+            Seq.zip people ordered
+            |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person") x
+
+            let reversed =
+                session
+                |> Doc.query<Person>
+                |> Doc.orderByDescending<Person, int> <@ fun person -> person.Age @>
+                |> Doc.toList
+            // Expect.equal peopleReversed reversed "Same people. Reversed."
+            Seq.zip peopleReversed reversed
+            |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person (rev)") x
+        }
+]
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
@@ -564,5 +717,7 @@ let ``API Tests`` =
             yield! headTests
             yield! toListTests
             yield! CRUDTests
+            yield! PatchTests
+            yield! LinQQueryTests
         ]
     ]
