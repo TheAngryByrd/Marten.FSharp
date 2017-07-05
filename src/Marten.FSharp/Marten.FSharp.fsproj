@@ -26,7 +26,7 @@
     <Tailcalls>true</Tailcalls>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Marten.FSharp.fs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='net46'">
     <PackageReference Include="FSharp.Core" Version="4.0.0.*" />
