@@ -121,17 +121,37 @@ let withDatabase f () =
 
 open System.Reflection
 open Microsoft.FSharp.Reflection
-let withDatabaseAndStore (f : _ -> _ -> _) () = async {
+let inline withDatabaseAndStore (f : _ -> _)  = async {
     use database =  getNewDatabase ()
-    use store = getStore database
-    let retval = f database store
-    return! (retval |> box :?> Async<unit>)
+    use store = getStore database :> IDocumentStore
+    return! f (database, store)
 }
+
+type ParameterizedTest<'a> =
+    | Sync of string * ('a -> unit)
+    | Async of string * ('a -> Async<unit>)
+
+
+let testCase' name test =
+     ParameterizedTest.Sync(name,test)
+
+let testCaseAsync' name test  =
+    ParameterizedTest.Async(name,test)
+
+let inline testFixture'<'a> setup =
+    Seq.map (fun ( parameterizedTest : ParameterizedTest<'a>) ->
+        match parameterizedTest with
+        | Sync (name, test) ->
+            testCase name <| fun () -> test >> async.Return |> setup |> Async.RunSynchronously
+        | Async (name, test) ->
+            testCaseAsync name <| setup test
+
+    )
+
 
 [<Tests>]
 let ``Litmus Tests`` =
   testList "litmus Tests" [
-
     yield! testFixture withDatabase [
         "Can create/destroy database", ignore
         "Can Save/Load Record",
@@ -142,80 +162,63 @@ let ``Litmus Tests`` =
                 use session2 = store.OpenSession()
                 let actualDog = session2.Load<Dog>(expectedDog.Id)
                 Expect.equal expectedDog actualDog "Same dog!"
-
     ]
   ]
-
-
-
-let inline testFixture' setup =
-    Seq.map (fun (testType, name, partialTest) ->
-        partialTest
-        |> setup
-        |> testType name
-    )
-
-let inline testCase' name (test )=
-    let test = test >> Async.RunSynchronously
-    TestLabel(name, TestCase (Sync test,Normal), Normal)
-let inline testCaseAsync' name (test : unit -> Async<unit>) =
-    let asyncWrapper = async.Delay test
-    TestLabel(name, TestCase (Async asyncWrapper,Normal), Normal)
-
-
-
-
-
 let exactlyOnceTests = [
-    testCase', "exactlyOne, Get Record Back" ,
-                fun db store -> async {
-                    let expectedDog = saveDog' store
+    testCase'
+        "exactlyOne, Get Record Back" <|
+            fun (db, store) ->
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let actualDog =
+                      session
+                        |> Doc.query<Dog>
+                        |> Doc.exactlyOne
+                Expect.equal expectedDog actualDog  "Should be one dog!"
+
+
+    testCase'
+        "exactlyOne, Throws if more than one" <|
+            fun (db, store) ->
+                Expect.throwsT<InvalidOperationException>(fun _ ->
+                    let _ = saveDog' store
+                    let _ = saveDog' store
                     use session = store.OpenSession()
                     let actualDog =
-                          session
+                        session
                             |> Doc.query<Dog>
                             |> Doc.exactlyOne
-                    Expect.equal expectedDog actualDog  "Should be one dog!"
-                }
+                    ()
+                ) "Should be too many dogs!"
 
-    testCase', "exactlyOne, Throws if more than one" ,
-        fun db store -> async {
-            Expect.throwsT<InvalidOperationException>(fun _ ->
-                let _ = saveDog' store
-                let _ = saveDog' store
+
+    testCase'
+        "exactlyOne, Throws if none" <|
+            fun (db, store) ->
+                Expect.throwsT<InvalidOperationException>(fun _ ->
+                    use session = store.OpenSession()
+                    let actualDog =
+                        session
+                            |> Doc.query<Dog>
+                            |> Doc.exactlyOne
+                    ()
+                ) "Should be no dog!"
+
+
+    testCaseAsync'
+        "exactlyOneAsync, Get Record Back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
                 use session = store.OpenSession()
-                let actualDog =
-                    session
+                let! actualDog =
+                        session
                         |> Doc.query<Dog>
-                        |> Doc.exactlyOne
-                ()
-            ) "Should be too many dogs!"
-
-        }
-    testCase', "exactlyOne, Throws if none" ,
-        fun db store -> async {
-            Expect.throwsT<InvalidOperationException>(fun _ ->
-                use session = store.OpenSession()
-                let actualDog =
-                    session
-                        |> Doc.query<Dog>
-                        |> Doc.exactlyOne
-                ()
-            ) "Should be no dog!"
-
-        }
-    testCaseAsync', "exactlyOneAsync, Get Record Back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let! actualDog =
-                    session
-                    |> Doc.query<Dog>
-                    |> Doc.exactlyOneAsync
-            Expect.equal expectedDog actualDog  "Should be one dog!"
-        }
-    testCaseAsync', "exactlyOneAsync, Throws if more than one" ,
-        fun db store -> async {
+                        |> Doc.exactlyOneAsync
+                Expect.equal expectedDog actualDog  "Should be one dog!"
+            }
+    testCaseAsync'
+        "exactlyOneAsync, Throws if more than one" <|
+        fun (db, store) -> async {
             do!
                 Expect.throwsTAsync<AggregateException>(async {
                     let _ = saveDog' store
@@ -229,8 +232,9 @@ let exactlyOnceTests = [
                 }) "Should be too many dogs!"
 
     }
-    testCaseAsync', "exactlyOneAsync, Throws if none" ,
-        fun db store -> async {
+    testCaseAsync'
+        "exactlyOneAsync, Throws if none" <|
+        fun (db, store) -> async {
             do!
                 Expect.throwsTAsync<AggregateException>(async {
                     use session = store.OpenSession()
@@ -245,8 +249,9 @@ let exactlyOnceTests = [
 ]
 
 let filterTests = [
-    testCase', "filter by, Get Record Back" ,
-            fun db store -> async {
+    testCase'
+        "filter by, Get Record Back" <|
+            fun (db, store) ->
                 let expectedDog = saveDog' store
                 use session = store.OpenSession()
                 let actualDog =
@@ -255,14 +260,15 @@ let filterTests = [
                     |> Doc.filter <@fun d -> d.Name = "Spark" @>
                     |> Doc.head
                 Expect.equal expectedDog actualDog  "Should be one dog!"
-            }
+
 ]
 type User = {
     Name : string
 }
 let mapTests = [
-    testCase', "map, Get Name Back" ,
-            fun db store -> async {
+    testCase'
+        "map, Get Name Back" <|
+            fun (db, store) ->
                 let expectedDog = saveDog' store
                 use session = store.OpenSession()
                 let actualDog =
@@ -271,9 +277,10 @@ let mapTests = [
                     |> Doc.map(<@fun s -> s.Name@> )
                     |> Doc.head
                 Expect.equal expectedDog.Name actualDog  "Should be one dog!"
-            }
-    testCase', "map to another type, Get User Back" ,
-            fun db store -> async {
+
+    testCase'
+        "map to another type, Get User Back" <|
+            fun (db, store) ->
                 let expectedDog = saveDog' store
                 use session = store.OpenSession()
                 let actualUser =
@@ -283,92 +290,100 @@ let mapTests = [
                     |> Doc.head
                 Expect.isType<User> (box actualUser) "Should be User type"
                 Expect.equal expectedDog.Name actualUser.Name  "Should be a user!"
-            }
+
 ]
 
 let headTests = [
-    testCase', "head, single dog, Get Record Back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let actualDog =
-                session
-                |> Doc.query<Dog>
-                |> Doc.head
-            Expect.equal expectedDog actualDog  "Should be a same dog!"
-        }
-    testCase', "head, multiple dogs, get top record back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            let _ = saveDog' store
-            use session = store.OpenSession()
-            let actualDog =
-                session
-                |> Doc.query<Dog>
-                |> Doc.head
-            Expect.equal expectedDog actualDog  "Should be a same dog!"
-        }
-    testCase', "head, no dogs, throws exception" ,
-        fun db store -> async {
-            Expect.throwsT<InvalidOperationException>(fun _ ->
-            use session = store.OpenSession()
-            let actualDog =
-                session
+    testCase'
+        "head, single dog, Get Record Back" <|
+            fun (db, store) ->
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let actualDog =
+                    session
                     |> Doc.query<Dog>
                     |> Doc.head
-            ()
-            ) "Should be no dog!"
-        }
+                Expect.equal expectedDog actualDog  "Should be a same dog!"
 
-    testCaseAsync', "headAsync, single dog, Get Record Back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let! actualDog =
-                session
-                |> Doc.query<Dog>
-                |> Doc.headAsync
-            Expect.equal expectedDog actualDog  "Should be a same dog!"
-        }
-    testCaseAsync', "headAsync, multiple dogs, get top record back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            let _ = saveDog' store
-            use session = store.OpenSession()
-            let! actualDog =
-                session
-                |> Doc.query<Dog>
-                |> Doc.headAsync
-            Expect.equal expectedDog actualDog  "Should be a same dog!"
-        }
-    testCaseAsync', "headAsync, no dogs, throws exception" ,
-        fun db store -> async {
-            do!
-                Expect.throwsTAsync<AggregateException>(async {
-                    use session = store.OpenSession()
-                    let! actualDog =
-                        session
-                            |> Doc.query<Dog>
-                            |> Doc.headAsync
-                    ()
-                }) "Should be no dog!"
-        }
+    testCase'
+        "head, multiple dogs, get top record back" <|
+            fun (db, store) ->
+                let expectedDog = saveDog' store
+                let _ = saveDog' store
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.head
+                Expect.equal expectedDog actualDog  "Should be a same dog!"
+
+    testCase'
+        "head, no dogs, throws exception" <|
+            fun (db, store) ->
+                Expect.throwsT<InvalidOperationException>(fun _ ->
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                        |> Doc.query<Dog>
+                        |> Doc.head
+                ()
+                ) "Should be no dog!"
+
+
+    testCaseAsync'
+        "headAsync, single dog, Get Record Back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let! actualDog =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.headAsync
+                Expect.equal expectedDog actualDog  "Should be a same dog!"
+            }
+    testCaseAsync'
+        "headAsync, multiple dogs, get top record back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                let _ = saveDog' store
+                use session = store.OpenSession()
+                let! actualDog =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.headAsync
+                Expect.equal expectedDog actualDog  "Should be a same dog!"
+            }
+    testCaseAsync'
+        "headAsync, no dogs, throws exception" <|
+            fun (db, store) -> async {
+                do!
+                    Expect.throwsTAsync<AggregateException>(async {
+                        use session = store.OpenSession()
+                        let! actualDog =
+                            session
+                                |> Doc.query<Dog>
+                                |> Doc.headAsync
+                        ()
+                    }) "Should be no dog!"
+            }
 ]
 
 
 let toListTests = [
-    testCase', "toList, single dog, get single back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toList
-            Expect.contains actualDogs expectedDog "Should contain same dog!"
-        }
-    testCase', "toList, multiple dogs, get multple back" ,
-        fun db store -> async {
+    testCase'
+        "toList, single dog, get single back" <|
+            fun (db, store) ->
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toList
+                Expect.contains actualDogs expectedDog "Should contain same dog!"
+
+    testCase'
+        "toList, multiple dogs, get multple back" <|
+        fun (db, store) ->
             let expectedDog = saveDog' store
             let expectedDog2 = saveDog' store
             use session = store.OpenSession()
@@ -378,165 +393,174 @@ let toListTests = [
                 |> Doc.toList
             Expect.contains actualDogs expectedDog "Should contain same dog!"
             Expect.contains actualDogs expectedDog2 "Should contain same dog!"
-        }
-    testCase', "toList, no dogs, get empty list" ,
-        fun db store -> async {
+
+    testCase'
+        "toList, no dogs, get empty list" <|
+        fun (db, store) ->
             use session = store.OpenSession()
             let actualDogs =
                 session
                 |> Doc.query<Dog>
                 |> Doc.toList
             Expect.isEmpty actualDogs "Should be no dogs!"
-        }
-    testCaseAsync', "toListAsync, single dog, get single back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let! actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toListAsync
-            Expect.contains actualDogs expectedDog "Should contain same dog!"
-        }
-    testCaseAsync', "toListAsync, multiple dogs, get multple back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            let expectedDog2 = saveDog' store
-            use session = store.OpenSession()
-            let! actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toListAsync
-            Expect.contains actualDogs expectedDog "Should contain same dog!"
-            Expect.contains actualDogs expectedDog2 "Should contain same dog!"
-        }
-    testCaseAsync', "toListAsync, no dogs, get empty list" ,
-        fun db store -> async {
-            use session = store.OpenSession()
-            let! actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toListAsync
-            Expect.isEmpty actualDogs "Should be no dogs!"
-        }
+
+    testCaseAsync'
+        "toListAsync, single dog, get single back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let! actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toListAsync
+                Expect.contains actualDogs expectedDog "Should contain same dog!"
+            }
+    testCaseAsync'
+        "toListAsync, multiple dogs, get multple back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                let expectedDog2 = saveDog' store
+                use session = store.OpenSession()
+                let! actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toListAsync
+                Expect.contains actualDogs expectedDog "Should contain same dog!"
+                Expect.contains actualDogs expectedDog2 "Should contain same dog!"
+            }
+    testCaseAsync'
+        "toListAsync, no dogs, get empty list" <|
+            fun (db, store) -> async {
+                use session = store.OpenSession()
+                let! actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toListAsync
+                Expect.isEmpty actualDogs "Should be no dogs!"
+            }
 ]
 
 
 let CRUDTests = [
-    testCase', "loadByGuid, Get Some Record back" ,
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let actualDog =
-                session
-                |> Doc.loadByGuid<Dog> expectedDog.Id
-            Expect.equal (Some expectedDog) actualDog  "Same dog!"
-        }
-    testCase', "loadByGuid, Get None Record back" ,
-        fun db store -> async {
-            let _ = saveDog' store
-            use session = store.OpenSession()
-            let actualDog =
-                session
-                |> Doc.loadByGuid<Dog> (Guid.NewGuid())
-            Expect.equal None actualDog  "Should be no dog!"
-        }
-    testCaseAsync', "loadByGuidAsync, get Some record back",
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let! actualDog =
-                session
-                |> Doc.loadByGuidAsync<Dog> expectedDog.Id
+    testCase'
+        "loadByGuid, Get Some Record back" <|
+            fun (db, store) ->
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                    |> Doc.loadByGuid<Dog> expectedDog.Id
+                Expect.equal (Some expectedDog) actualDog  "Same dog!"
+    testCase'
+        "loadByGuid, Get None Record back" <|
+            fun (db, store) ->
+                let _ = saveDog' store
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                    |> Doc.loadByGuid<Dog> (Guid.NewGuid())
+                Expect.equal None actualDog  "Should be no dog!"
+    testCaseAsync'
+        "loadByGuidAsync, get Some record back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let! actualDog =
+                    session
+                    |> Doc.loadByGuidAsync<Dog> expectedDog.Id
 
-            Expect.equal (Some expectedDog) actualDog  "Same dog!"
-        }
-    testCaseAsync', "loadByGuidAsync, get None record back",
-        fun db store -> async {
-            let expectedDog = saveDog' store
-            use session = store.OpenSession()
-            let! actualDog =
-                session
-                |> Doc.loadByGuidAsync<Dog> (Guid.NewGuid())
+                Expect.equal (Some expectedDog) actualDog  "Same dog!"
+            }
+    testCaseAsync'
+        "loadByGuidAsync, get None record back" <|
+            fun (db, store) -> async {
+                let expectedDog = saveDog' store
+                use session = store.OpenSession()
+                let! actualDog =
+                    session
+                    |> Doc.loadByGuidAsync<Dog> (Guid.NewGuid())
 
-            Expect.equal None actualDog  "Should be no dog!"
-        }
-    testCase', "storeSingle/saveChanges" ,
-        fun db (store : #IDocumentStore) -> async {
-            let sparky = newDog "Sparky" "Shoes"
+                Expect.equal None actualDog  "Should be no dog!"
+            }
+    testCase'
+        "storeSingle/saveChanges" <|
+            fun (db, store) ->
+                let sparky = newDog "Sparky" "Shoes"
 
-            use session = store.OpenSession()
-            sparky |> Doc.storeSingle session
-            session |> Doc.saveChanges
-            let actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toList
-            Expect.contains actualDogs sparky "Should contain same dog!"
+                use session = store.OpenSession()
+                sparky |> Doc.storeSingle session
+                session |> Doc.saveChanges
+                let actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toList
+                Expect.contains actualDogs sparky "Should contain same dog!"
 
-        }
-    testCase', "storeMany/delete/saveChanges" ,
-        fun db (store : #IDocumentStore) -> async {
-            let sparky = newDog "Sparky" "Shoes"
-            let spot = newDog "Spot" "Macbook"
 
-            use session = store.OpenSession()
-            [sparky ; spot] |> Doc.storeMany session
-            session |> Doc.saveChanges
-            let actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toList
-            Expect.contains actualDogs sparky "Should contain same dog!"
-            Expect.contains actualDogs spot "Should contain same dog!"
+    testCase'
+        "storeMany/delete/saveChanges" <|
+            fun (db, store) ->
+                let sparky = newDog "Sparky" "Shoes"
+                let spot = newDog "Spot" "Macbook"
 
-            session |> Doc.deleteEntity spot
-            session |> Doc.saveChanges
-            let actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toList
-            Expect.contains actualDogs sparky "Should contain same dog!"
+                use session = store.OpenSession()
+                [sparky ; spot] |> Doc.storeMany session
+                session |> Doc.saveChanges
+                let actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toList
+                Expect.contains actualDogs sparky "Should contain same dog!"
+                Expect.contains actualDogs spot "Should contain same dog!"
 
-            session |> Doc.deleteByGuid<Dog> sparky.Id
-            session |> Doc.saveChanges
-            let actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toList
-            Expect.isEmpty actualDogs "Should be no more dogs"
+                session |> Doc.deleteEntity spot
+                session |> Doc.saveChanges
+                let actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toList
+                Expect.contains actualDogs sparky "Should contain same dog!"
 
-        }
-    testCaseAsync', "storeSingle/saveChangesAsync" ,
-        fun db (store : #IDocumentStore) -> async {
-            let sparky = newDog "Sparky" "Shoes"
+                session |> Doc.deleteByGuid<Dog> sparky.Id
+                session |> Doc.saveChanges
+                let actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toList
+                Expect.isEmpty actualDogs "Should be no more dogs"
 
-            use session = store.OpenSession()
-            sparky |> Doc.storeSingle session
-            do! session |> Doc.saveChangesAsync
-            let! actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toListAsync
-            Expect.contains actualDogs sparky "Should contain same dog!"
 
-        }
-    testCaseAsync', "storeMany/saveChangesAsync" ,
-        fun db (store : #IDocumentStore) -> async {
-            let sparky = newDog "Sparky" "Shoes"
-            let spot = newDog "Spot" "Macbook"
+    testCaseAsync'
+        "storeSingle/saveChangesAsync" <|
+            fun (db, store) -> async {
+                let sparky = newDog "Sparky" "Shoes"
 
-            use session = store.OpenSession()
-            [sparky ; spot] |> Doc.storeMany session
-            do! session |> Doc.saveChangesAsync
-            let! actualDogs =
-                session
-                |> Doc.query<Dog>
-                |> Doc.toListAsync
-            Expect.contains actualDogs sparky "Should contain same dog!"
-            Expect.contains actualDogs spot "Should contain same dog!"
+                use session = store.OpenSession()
+                sparky |> Doc.storeSingle session
+                do! session |> Doc.saveChangesAsync
+                let! actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toListAsync
+                Expect.contains actualDogs sparky "Should contain same dog!"
 
-        }
+            }
+    testCaseAsync'
+        "storeMany/saveChangesAsync" <|
+            fun (db, store) -> async {
+                let sparky = newDog "Sparky" "Shoes"
+                let spot = newDog "Spot" "Macbook"
+
+                use session = store.OpenSession()
+                [sparky ; spot] |> Doc.storeMany session
+                do! session |> Doc.saveChangesAsync
+                let! actualDogs =
+                    session
+                    |> Doc.query<Dog>
+                    |> Doc.toListAsync
+                Expect.contains actualDogs sparky "Should contain same dog!"
+                Expect.contains actualDogs spot "Should contain same dog!"
+            }
 ]
 
 [<CLIMutableAttribute>]
@@ -549,162 +573,168 @@ type Person = {
 let newPerson name age =
     { Id = Guid.NewGuid (); Name = name; Age = age }
 
-let savePerson  (store : IDocumentStore) (person : Person) =
+let savePerson  (store : #IDocumentStore) (person : Person) =
     use session = store.OpenSession()
     session.Store(person)
     session.SaveChanges()
     person
 
 let PatchTests = [
-    testCase', "patch and then set",
-        fun (db : DisposableDatabase) (store : DocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let edittedMarco = { marcoPolo with Age = 200 }
-            savePerson store marcoPolo |> ignore
-            use session = store.OpenSession()
+    testCase'
+        "patch and then set" <|
+            fun (db, store)->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let edittedMarco = { marcoPolo with Age = 200 }
+                savePerson store marcoPolo |> ignore
+                use session = store.OpenSession()
 
-            session
-            |> Doc.patch<Person>(marcoPolo.Id)
-            |> Doc.pSet<Person, int> <@ fun dog -> dog.Age @> 200
-            Doc.saveChanges session
-
-            let actualMarco =
                 session
-                |> Doc.loadByGuid<Person> marcoPolo.Id
-            Expect.equal (Some edittedMarco) actualMarco "Edited successfully"
-        }
-    testCase', "patch and then increment",
-        fun db (store : #IDocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let edittedMarco1 = { marcoPolo with Age = 501 }
-            let edittedMarco3 = { marcoPolo with Age = 503 }
-            savePerson store marcoPolo |> ignore
-            use session = store.OpenSession()
+                |> Doc.patch<Person>(marcoPolo.Id)
+                |> Doc.pSet <@ fun dog -> dog.Age @> 200
+                Doc.saveChanges session
 
-            session
-            |> Doc.patch<Person>(marcoPolo.Id)
-            |> Doc.pInc<Person> <@ fun marco -> marco.Age @>
-            Doc.saveChanges session
+                let actualMarco =
+                    session
+                    |> Doc.loadByGuid<Person> marcoPolo.Id
+                Expect.equal (Some edittedMarco) actualMarco "Edited successfully"
 
-            let actualMarco =
+    testCase'
+        "patch and then increment" <|
+            fun (db, store) ->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let edittedMarco1 = { marcoPolo with Age = 501 }
+                let edittedMarco3 = { marcoPolo with Age = 503 }
+                savePerson store marcoPolo |> ignore
+                use session = store.OpenSession()
+
                 session
-                |> Doc.loadByGuid<Person> marcoPolo.Id
-            Expect.equal (Some edittedMarco1) actualMarco "Edited successfully"
-        }
-    testCase', "patch and then increment not by one",
-        fun db (store : #IDocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let edittedMarco3 = { marcoPolo with Age = 503 }
-            savePerson store marcoPolo |> ignore
+                |> Doc.patch<Person>(marcoPolo.Id)
+                |> Doc.pInc<Person> <@ fun marco -> marco.Age @>
+                Doc.saveChanges session
 
-            use session = store.OpenSession()
-            session
-            |> Doc.patch<Person>(marcoPolo.Id)
-            |> Doc.pIncPlural<Person> <@ fun marco -> marco.Age @> 3
-            Doc.saveChanges session
+                let actualMarco =
+                    session
+                    |> Doc.loadByGuid<Person> marcoPolo.Id
+                Expect.equal (Some edittedMarco1) actualMarco "Edited successfully"
 
-            let actualMarco =
+    testCase'
+        "patch and then increment not by one" <|
+            fun  (db, store) ->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let edittedMarco3 = { marcoPolo with Age = 503 }
+                savePerson store marcoPolo |> ignore
+
+                use session = store.OpenSession()
                 session
-                |> Doc.loadByGuid<Person> marcoPolo.Id
-            Expect.equal (Some edittedMarco3) actualMarco "Edited successfully"
-        }
+                |> Doc.patch<Person>(marcoPolo.Id)
+                |> Doc.pIncPlural<Person> <@ fun marco -> marco.Age @> 3
+                Doc.saveChanges session
+
+                let actualMarco =
+                    session
+                    |> Doc.loadByGuid<Person> marcoPolo.Id
+                Expect.equal (Some edittedMarco3) actualMarco "Edited successfully"
+
 ]
 
 let LinQQueryTests = [
-    testCase', "count, min, and max",
-        fun db (store : #IDocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let niccoloPolo = newPerson "Niccolo Polo" 800
-            let maffeoPolo = newPerson "Maffeo Polo" 801
-            use session = store.OpenSession ()
+    testCase'
+        "count, min, and max" <|
+            fun  (db, store : IDocumentStore) ->
 
-            Doc.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
-            Doc.saveChanges session
+                let marcoPolo = newPerson "Marco Polo" 500
+                let niccoloPolo = newPerson "Niccolo Polo" 800
+                let maffeoPolo = newPerson "Maffeo Polo" 801
+                use session = store.OpenSession ()
 
-            let peopleCount =
-                session
-                |> Doc.query<Person>
-                |> Doc.count<Person> <@ fun person -> person.Age > 500 @>
-            Expect.equal 2 peopleCount "Should be the same"
+                Doc.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                Doc.saveChanges session
 
-            let oldest =
-                session
-                |> Doc.query<Person>
-                |> Doc.max<Person, int> <@ fun person -> person.Age @>
-            Expect.equal maffeoPolo.Age oldest "Should be Maffeo Polo"
+                let peopleCount =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.count<Person> <@ fun person -> person.Age > 500 @>
+                Expect.equal 2 peopleCount "Should be the same"
 
-            let youngest =
-                session
-                |> Doc.query<Person>
-                |> Doc.min<Person, int> <@ fun person -> person.Age @>
-            Expect.equal marcoPolo.Age youngest "Should be Marco Polo"
-        }
-    testCase', "paging (skip and take)",
-        fun db (store : #IDocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let niccoloPolo = newPerson "Niccolo Polo" 800
-            let maffeoPolo = newPerson "Maffeo Polo" 801
-            let magellan = newPerson "Ferdinand Magellan" 600
-            let columbus = newPerson "Christopher Columbus" 550
-            use session = store.OpenSession ()
+                let oldest =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.max<Person, int> <@ fun person -> person.Age @>
+                Expect.equal maffeoPolo.Age oldest "Should be Maffeo Polo"
 
-            let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
-            let peopleGeneric = new System.Collections.Generic.List<Person>([ niccoloPolo; maffeoPolo; magellan ])
+                let youngest =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.min<Person, int> <@ fun person -> person.Age @>
+                Expect.equal marcoPolo.Age youngest "Should be Marco Polo"
 
-            Doc.storeMany session people
-            Doc.saveChanges session
+    testCase'
+        "paging (skip and take)" <|
+            fun  (db, store) ->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let niccoloPolo = newPerson "Niccolo Polo" 800
+                let maffeoPolo = newPerson "Maffeo Polo" 801
+                let magellan = newPerson "Ferdinand Magellan" 600
+                let columbus = newPerson "Christopher Columbus" 550
+                use session = store.OpenSession ()
 
-            let paged =
-                session
-                |> Doc.query<Person>
-                |> Doc.paging 1 3
-                |> Doc.toList
+                let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+                let peopleGeneric = new System.Collections.Generic.List<Person>([ niccoloPolo; maffeoPolo; magellan ])
 
-            Seq.zip peopleGeneric paged
-            |> fun x -> Seq.iter (fun (p, db) -> Expect.equal p db "Same people (paging)") x
-        }
-    testCase', "orderBy, orderByDescending, and thenBy",
-        fun db (store : #IDocumentStore) -> async {
-            let marcoPolo = newPerson "Marco Polo" 500
-            let niccoloPolo = newPerson "Niccolo Polo" 800
-            let maffeoPolo = newPerson "Maffeo Polo" 801
-            let magellan = newPerson "Ferdinand Magellan" 600
-            let columbus = newPerson "Christopher Columbus" 550
-            use session = store.OpenSession ()
+                Doc.storeMany session people
+                Doc.saveChanges session
 
-            let people =
-                [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
-                |> List.sortBy (fun person -> person.Age)
-                |> fun x -> Collections.Generic.List<Person>(x)
+                let paged =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.paging 1 3
+                    |> Doc.toList
 
-            let peopleReversed =
-                [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
-                |> List.sortBy (fun person -> person.Age)
-                |> List.rev
-                |> fun x -> Collections.Generic.List<Person>(x)
+                Seq.zip peopleGeneric paged
+                |> fun x -> Seq.iter (fun (p, db) -> Expect.equal p db "Same people (paging)") x
 
-            Doc.storeMany session people
-            Doc.saveChanges session
+    testCase'
+        "orderBy, orderByDescending, and thenBy" <|
+            fun  (db, store) ->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let niccoloPolo = newPerson "Niccolo Polo" 800
+                let maffeoPolo = newPerson "Maffeo Polo" 801
+                let magellan = newPerson "Ferdinand Magellan" 600
+                let columbus = newPerson "Christopher Columbus" 550
+                use session = store.OpenSession ()
 
-            let ordered =
-                session
-                |> Doc.query<Person>
-                |> Doc.orderBy<Person, int> <@ fun person -> person.Age @>
-                |> Doc.toList
+                let people =
+                    [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+                    |> List.sortBy (fun person -> person.Age)
+                    |> fun x -> Collections.Generic.List<Person>(x)
 
-            // Expect.equal people ordered "Same people."
-            Seq.zip people ordered
-            |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person") x
+                let peopleReversed =
+                    [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
+                    |> List.sortBy (fun person -> person.Age)
+                    |> List.rev
+                    |> fun x -> Collections.Generic.List<Person>(x)
 
-            let reversed =
-                session
-                |> Doc.query<Person>
-                |> Doc.orderByDescending<Person, int> <@ fun person -> person.Age @>
-                |> Doc.toList
-            // Expect.equal peopleReversed reversed "Same people. Reversed."
-            Seq.zip peopleReversed reversed
-            |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person (rev)") x
-        }
+                Doc.storeMany session people
+                Doc.saveChanges session
+
+                let ordered =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.orderBy<Person, int> <@ fun person -> person.Age @>
+                    |> Doc.toList
+
+                // Expect.equal people ordered "Same people."
+                Seq.zip people ordered
+                |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person") x
+
+                let reversed =
+                    session
+                    |> Doc.query<Person>
+                    |> Doc.orderByDescending<Person, int> <@ fun person -> person.Age @>
+                    |> Doc.toList
+                // Expect.equal peopleReversed reversed "Same people. Reversed."
+                Seq.zip peopleReversed reversed
+                |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person (rev)") x
 ]
 
 [<Tests>]
