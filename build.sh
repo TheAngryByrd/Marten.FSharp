@@ -88,10 +88,10 @@ else
   rm -rf data/
   initdb -D data/
   postgres -D data &
-  psql -d template1 -c 'create extension if not exists plv8;'
+  sleep 3  
 fi
 
-
+psql -d template1 -c 'create extension if not exists plv8;'
 
 
 run $FAKE_EXE "$@" $FSIARGS $FSIARGS2 build.fsx
