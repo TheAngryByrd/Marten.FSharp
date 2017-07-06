@@ -126,6 +126,12 @@ module Doc =
     let query<'a> (session : IDocumentSession) =
         session.Query<'a>()
 
+    let sql<'a> (session : IDocumentSession) string parameters =
+        session.Query<'a>(string, parameters)
+
+    let sqlAsync<'a> (session : IDocumentSession) string parameters =
+        session.QueryAsync<'a>(string, parameters=parameters) |> Async.AwaitTask
+
     let exactlyOne (q : IQueryable<'a>) = q.Single()
     let exactlyOneAsync (q : IQueryable<'a>) =
         q.SingleAsync()

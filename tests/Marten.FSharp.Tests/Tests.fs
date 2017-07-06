@@ -737,6 +737,43 @@ let LinQQueryTests = [
                 |> fun x -> Seq.iter (fun (r, db) -> Expect.equal r db "same person (rev)") x
 ]
 
+type personByNameParameter = {
+    name : string
+}
+let sqlTests = [
+    testCase'
+        "sql with string parameter" <|
+            fun (db,store : IDocumentStore) ->
+                let marcoPolo = newPerson "Marco Polo" 500
+                let niccoloPolo = newPerson "Niccolo Polo" 800
+                let maffeoPolo = newPerson "Maffeo Polo" 801
+                use session = store.OpenSession ()
+
+                Doc.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                Doc.saveChanges session
+
+                use session2 = store.OpenSession()
+                let personNameParameter =  { name = "Marco Polo"}
+                let person = Doc.sql<Person> session2 "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Seq.head
+                Expect.equal person marcoPolo "Not marco"
+    testCaseAsync'
+        "sql with string paramter async" <|
+            fun (db,store : IDocumentStore) -> async {
+                let marcoPolo = newPerson "Marco Polo" 500
+                let niccoloPolo = newPerson "Niccolo Polo" 800
+                let maffeoPolo = newPerson "Maffeo Polo" 801
+                use session = store.OpenSession ()
+
+                Doc.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                Doc.saveChanges session
+
+                use session2 = store.OpenSession()
+                let personNameParameter =  { name = "Marco Polo"}
+                let! person = Doc.sqlAsync<Person> session2 "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Async.map(Seq.head)
+                Expect.equal person marcoPolo "Not marco"
+            }
+]
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
@@ -749,5 +786,6 @@ let ``API Tests`` =
             yield! CRUDTests
             yield! PatchTests
             yield! LinQQueryTests
+            yield! sqlTests
         ]
     ]
