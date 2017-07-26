@@ -18,11 +18,17 @@ module AsyncExtensions =
         /// Creates an async computation that runs a mapping function on the result of an async computation
         let map f x = x |> bind (f >> singleton)
 
+    module Task =
+        open System.Threading.Tasks
+        let map f (t : Task<_>) = t.ContinueWith(fun (x : Task<_>) -> x.Result |> f)
+
+
 
 module Option =
     /// Creates an option from a potentially null record type
     let ofNullableRecord record =
-        if (record |> box |> isNull) then None else Some record
+        if (record |> box |> isNull) then None
+        else Some record
 
 
 open System
@@ -48,8 +54,6 @@ module Lambda =
         Expression.Lambda<'a>(body, args |> Array.ofList)
     let inline ofArity1 (expr : Expr<'a -> 'b>) =
         toLinq<Func<'a,'b>> expr
-    let inline ofArity1WithCollection (expr : Expr<'a -> 'b>) =
-        toLinq<Func<'a, Collections.Generic.IEnumerable<'b>>> expr
     let inline ofArity2 (expr : Expr<'a -> 'b -> 'c>) =
         toLinq<Func<'a,'b,'c>> expr
 
@@ -99,51 +103,82 @@ module Session =
         | Int i -> loadByInt<'a> i
         | Int64 i -> loadByInt64<'a> i
 
-    let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) =
+
+    let loadByGuidTask<'a> (id : Guid) (session : IDocumentSession) =
         session.LoadAsync<'a>(id)
+        |> Task.map Option.ofNullableRecord
+
+    let loadByIntTask<'a> (id : int32) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Task.map Option.ofNullableRecord
+
+    let loadByInt64Task<'a> (id : int64) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Task.map Option.ofNullableRecord
+
+    let loadByStringTask<'a> (id : string ) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Task.map Option.ofNullableRecord
+
+    let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) =
+        session
+        |> loadByGuidTask<'a>(id)
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
 
     let loadByIntAsync<'a> (id : int32) (session : IDocumentSession) =
-        session.LoadAsync<'a>(id)
+        session
+        |> loadByIntTask<'a>(id)
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
+
     let loadByInt64Async<'a> (id : int64) (session : IDocumentSession) =
-        session.LoadAsync<'a>(id)
+        session
+        |> loadByInt64Task<'a>(id)
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
 
     let loadByStringAsync<'a> (id : string ) (session : IDocumentSession) =
-        session.LoadAsync<'a>(id)
+        session
+        |> loadByStringTask<'a>(id)
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
+
+    let loadTask<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+        session
+        |>  match pk with
+            | Guid g -> loadByGuidTask<'a> g
+            | String s -> loadByStringTask<'a> s
+            | Int i -> loadByIntTask<'a> i
+            | Int64 i -> loadByInt64Task<'a> i
     let loadAsync<'a> (pk : PrimaryKey) (session : IDocumentSession) =
-        match pk with
-        | Guid g -> loadByGuidAsync<'a> g
-        | String s -> loadByStringAsync<'a> s
-        | Int i -> loadByIntAsync<'a> i
-        | Int64 i -> loadByInt64Async<'a> i
+        session
+        |> loadTask<'a> pk
+        |> Async.AwaitTask
 
     let query<'a> (session : IDocumentSession) =
         session.Query<'a>()
 
     let sql<'a> (session : IDocumentSession) string parameters =
         session.Query<'a>(string, parameters)
-
+    let sqlTask<'a> (session : IDocumentSession) string parameters =
+        session.QueryAsync<'a>(string, parameters=parameters)
     let sqlAsync<'a> (session : IDocumentSession) string parameters =
-        session.QueryAsync<'a>(string, parameters=parameters) |> Async.AwaitTask
+        sqlTask<'a> session string parameters
+        |> Async.AwaitTask
+
 
     let saveChanges (session : IDocumentSession) =
         session.SaveChanges()
-
+    let saveChangesTask (session : IDocumentSession) =
+        session.SaveChangesAsync()
     let saveChangesAsync (session : IDocumentSession) =
-        session.SaveChangesAsync() |> Async.AwaitTask
-
+        session
+        |> saveChangesTask
+        |> Async.AwaitTask
 
     let storeSingle (session : IDocumentSession) entity  =
         session.Store([|entity|])
     let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
-        entities |> Seq.toArray |> session.Store
+        entities
+        |> Seq.toArray
+        |> session.Store
 
     // PATCH.
     let patch<'a> (id : Guid) (session : IDocumentSession) =
@@ -160,8 +195,6 @@ module Session =
         let incPlural<'a> (part : Quotations.Expr<'a -> int>) inc (pExpr : Patching.IPatchExpression<'a>) =
             let func = Lambda.ofArity1 part
             pExpr.Increment(func, inc)
-
-
 
 module Queryable =
 
@@ -181,8 +214,11 @@ module Queryable =
 
     let exactlyOne (q : IQueryable<'a>) =
         q.Single()
-    let exactlyOneAsync (q : IQueryable<'a>) =
+    let exactlyOneTask (q : IQueryable<'a>) =
         q.SingleAsync()
+    let exactlyOneAsync (q : IQueryable<'a>) =
+        q
+        |> exactlyOneTask
         |> Async.AwaitTask
 
     let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
@@ -192,10 +228,13 @@ module Queryable =
 
     let head (q : IQueryable<'a>) =
         q.First()
-
-    let headAsync (q : IQueryable<'a>) =
+    let headTask (q : IQueryable<'a>) =
         q.FirstAsync()
+    let headAsync (q : IQueryable<'a>) =
+        q
+        |> headTask
         |> Async.AwaitTask
+
 
     let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
@@ -204,28 +243,36 @@ module Queryable =
 
     let toList (q : IQueryable<'a>) =
         q.ToList()
-
-    let toListAsync (q : IQueryable<'a>) =
+    let toListTask (q : IQueryable<'a>) =
         q.ToListAsync()
+    let toListAsync (q : IQueryable<'a>) =
+        q
+        |> toListTask
         |> Async.AwaitTask
 
     let tryExactlyOne (q : IQueryable<'a>) =
         q.SingleOrDefault()
         |> Option.ofNullableRecord
 
-    let tryExactlyOneAsync (q : IQueryable<'a>) =
+    let tryExactlyOneTask (q : IQueryable<'a>) =
         q.SingleOrDefaultAsync()
+        |> Task.map Option.ofNullableRecord
+    let tryExactlyOneAsync (q : IQueryable<'a>) =
+        q
+        |> tryExactlyOneTask
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
 
     let tryHead (q : IQueryable<'a>) =
         q.FirstOrDefault()
         |> Option.ofNullableRecord
 
-    let tryHeadAsync (q : IQueryable<'a>) =
+    let tryHeadTask (q : IQueryable<'a>) =
         q.FirstOrDefaultAsync()
+        |> Task.map Option.ofNullableRecord
+    let tryHeadAsync (q : IQueryable<'a>) =
+        q
+        |> tryHeadTask
         |> Async.AwaitTask
-        |> Async.map Option.ofNullableRecord
 
     let count<'a> (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
         f
