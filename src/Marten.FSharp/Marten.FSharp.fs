@@ -54,28 +54,30 @@ module Lambda =
         toLinq<Func<'a,'b,'c>> expr
 
 
-
-
-
-module Doc =
-    open Marten
-    open System.Linq
-    open Marten.Linq
-
+module Session =
+    type PrimaryKey =
+        | Guid of Guid
+        | String of string
+        | Int of int32
+        | Int64 of int64
 
     let deleteEntity (entity : 'a) (session : IDocumentSession) =
-        session.Delete<'a>(entity)
+        session.Delete(entity)
     let deleteByGuid<'a> (id : Guid) (session : IDocumentSession) =
         session.Delete<'a>(id)
     let deleteByString<'a> (id : string) (session : IDocumentSession) =
         session.Delete<'a>(id)
     let deleteByInt<'a> (id : int) (session : IDocumentSession) =
         session.Delete<'a>(id)
-
-
     let deleteByInt64<'a> (id : int64) (session : IDocumentSession) =
         session.Delete<'a>(id)
 
+    let delete<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+        match pk with
+        | Guid g -> deleteByGuid<'a> g
+        | String s -> deleteByString<'a> s
+        | Int i -> deleteByInt<'a> i
+        | Int64 i -> deleteByInt64<'a> i
 
     let loadByGuid<'a> (id : Guid) (session : IDocumentSession) =
         session.Load<'a>(id)
@@ -90,21 +92,46 @@ module Doc =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
 
-    let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) = async {
+    let load<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+        match pk with
+        | Guid g -> loadByGuid<'a> g
+        | String s -> loadByString<'a> s
+        | Int i -> loadByInt<'a> i
+        | Int64 i -> loadByInt64<'a> i
 
-        let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
-        return result |> Option.ofNullableRecord
-    }
+    let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
 
-    let loadByInt64Async<'a> (id : int64) (session : IDocumentSession) = async {
-        let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
-        return result |> Option.ofNullableRecord
-    }
-    let loadByStringAsync<'a> (id : string ) (session : IDocumentSession) = async {
-        let! result =  session.LoadAsync<'a>(id) |> Async.AwaitTask
-        return result |> Option.ofNullableRecord
-    }
+    let loadByIntAsync<'a> (id : int32) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
+    let loadByInt64Async<'a> (id : int64) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
 
+    let loadByStringAsync<'a> (id : string ) (session : IDocumentSession) =
+        session.LoadAsync<'a>(id)
+        |> Async.AwaitTask
+        |> Async.map Option.ofNullableRecord
+    let loadAsync<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+        match pk with
+        | Guid g -> loadByGuidAsync<'a> g
+        | String s -> loadByStringAsync<'a> s
+        | Int i -> loadByIntAsync<'a> i
+        | Int64 i -> loadByInt64Async<'a> i
+
+    let query<'a> (session : IDocumentSession) =
+        session.Query<'a>()
+
+    let sql<'a> (session : IDocumentSession) string parameters =
+        session.Query<'a>(string, parameters)
+
+    let sqlAsync<'a> (session : IDocumentSession) string parameters =
+        session.QueryAsync<'a>(string, parameters=parameters) |> Async.AwaitTask
 
     let saveChanges (session : IDocumentSession) =
         session.SaveChanges()
@@ -113,6 +140,33 @@ module Doc =
         session.SaveChangesAsync() |> Async.AwaitTask
 
 
+    let storeSingle (session : IDocumentSession) entity  =
+        session.Store([|entity|])
+    let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
+        entities |> Seq.toArray |> session.Store
+
+    // PATCH.
+    let patch<'a> (id : Guid) (session : IDocumentSession) =
+        session.Patch<'a>(id)
+
+    module Patch =
+
+        let set<'a, 'b> (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (pExpr : Patching.IPatchExpression<'a>) =
+            let func = Lambda.ofArity1 part
+            pExpr.Set<'b>(func, newVal)
+        let inc<'a> (part : Quotations.Expr<'a -> int>) (pExpr : Patching.IPatchExpression<'a>) =
+            let func = Lambda.ofArity1 part
+            pExpr.Increment(func, 1)
+        let incPlural<'a> (part : Quotations.Expr<'a -> int>) inc (pExpr : Patching.IPatchExpression<'a>) =
+            let func = Lambda.ofArity1 part
+            pExpr.Increment(func, inc)
+
+
+
+module Queryable =
+
+    open System.Linq
+    open Marten.Linq
     // not supported
     // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
     //     f
@@ -123,16 +177,10 @@ module Doc =
     //     q.Aggregate(
     //         seed,
     //         f|> Lambda.ofArity2)
-    let query<'a> (session : IDocumentSession) =
-        session.Query<'a>()
 
-    let sql<'a> (session : IDocumentSession) string parameters =
-        session.Query<'a>(string, parameters)
 
-    let sqlAsync<'a> (session : IDocumentSession) string parameters =
-        session.QueryAsync<'a>(string, parameters=parameters) |> Async.AwaitTask
-
-    let exactlyOne (q : IQueryable<'a>) = q.Single()
+    let exactlyOne (q : IQueryable<'a>) =
+        q.Single()
     let exactlyOneAsync (q : IQueryable<'a>) =
         q.SingleAsync()
         |> Async.AwaitTask
@@ -142,7 +190,8 @@ module Doc =
         |> Lambda.ofArity1
         |> q.Where
 
-    let head (q : IQueryable<'a>) = q.First()
+    let head (q : IQueryable<'a>) =
+        q.First()
 
     let headAsync (q : IQueryable<'a>) =
         q.FirstAsync()
@@ -153,10 +202,6 @@ module Doc =
         |> Lambda.ofArity1
         |> q.Select
 
-    let storeSingle (session : IDocumentSession) entity  =
-        session.Store([|entity|])
-    let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
-        entities |> Seq.toArray |> session.Store
     let toList (q : IQueryable<'a>) =
         q.ToList()
 
@@ -167,6 +212,7 @@ module Doc =
     let tryExactlyOne (q : IQueryable<'a>) =
         q.SingleOrDefault()
         |> Option.ofNullableRecord
+
     let tryExactlyOneAsync (q : IQueryable<'a>) =
         q.SingleOrDefaultAsync()
         |> Async.AwaitTask
@@ -175,6 +221,7 @@ module Doc =
     let tryHead (q : IQueryable<'a>) =
         q.FirstOrDefault()
         |> Option.ofNullableRecord
+
     let tryHeadAsync (q : IQueryable<'a>) =
         q.FirstOrDefaultAsync()
         |> Async.AwaitTask
@@ -184,26 +231,36 @@ module Doc =
         f
         |> Lambda.ofArity1
         |> q.Count
+
     let min<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
         |> Lambda.ofArity1
         |> q.Min
+
     let max<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
         |> Lambda.ofArity1
         |> q.Max
+
     let orderBy<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
         |> Lambda.ofArity1
         |> q.OrderBy
+
     let orderByDescending<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
         |> Lambda.ofArity1
         |> q.OrderByDescending
+
     let thenBy (f : Quotations.Expr<'a -> 'b>) (oq : IOrderedQueryable<'a>) =
         f
         |> Lambda.ofArity1
         |> oq.ThenBy
+
+    let thenByDescending (f : Quotations.Expr<'a -> 'b>) (oq : IOrderedQueryable<'a>) =
+        f
+        |> Lambda.ofArity1
+        |> oq.ThenByDescending
 
     let skip (amount : int) (q : IQueryable<'a>) =
         q.Skip(amount)
@@ -213,17 +270,3 @@ module Doc =
         q
         |> skip skipped
         |> take takeAmount
-
-    // PATCH.
-    let patch<'a> (id : Guid) (session : IDocumentSession) =
-        session.Patch<'a>(id)
-
-    let pSet<'a, 'b> (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (pExpr : Patching.IPatchExpression<'a>) =
-        let func = Lambda.ofArity1 part
-        pExpr.Set<'b>(func, newVal)
-    let pInc<'a> (part : Quotations.Expr<'a -> int>) (pExpr : Patching.IPatchExpression<'a>) =
-        let func = Lambda.ofArity1 part
-        pExpr.Increment(func, 1)
-    let pIncPlural<'a> (part : Quotations.Expr<'a -> int>) inc (pExpr : Patching.IPatchExpression<'a>) =
-        let func = Lambda.ofArity1 part
-        pExpr.Increment(func, inc)

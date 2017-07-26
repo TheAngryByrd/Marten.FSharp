@@ -244,6 +244,7 @@ _Pvt_Extensions
 # Paket dependency manager
 .paket/paket.exe
 paket-files/
+.paket/load/
 
 # FAKE - F# Make
 .fake/
