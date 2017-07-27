@@ -125,7 +125,8 @@ let runTests modifyArgs =
 
 Target "DotnetTest" (fun _ ->
     runTests id
-    |> Seq.iter (invoke)
+    |> Seq.toArray
+    |> Array.Parallel.iter (invoke)
 )
 let execProcAndReturnMessages filename args =
     let args' = args |> String.concat " "
