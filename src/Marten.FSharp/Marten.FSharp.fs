@@ -155,12 +155,13 @@ module Session =
     let query<'a> (session : IQuerySession) =
         session.Query<'a>()
 
-    let sql<'a> (session : IQuerySession) string parameters =
+    let sql<'a> string parameters (session : IQuerySession)  =
         session.Query<'a>(string, parameters)
-    let sqlTask<'a> (session : IQuerySession) string parameters =
+    let sqlTask<'a> string parameters  (session : IQuerySession)=
         session.QueryAsync<'a>(string, parameters=parameters)
-    let sqlAsync<'a> (session : IQuerySession) string parameters =
-        sqlTask<'a> session string parameters
+    let sqlAsync<'a> string parameters (session : IQuerySession) =
+        session
+        |> sqlTask<'a>  string parameters
         |> Async.AwaitTask
 
 
@@ -173,9 +174,9 @@ module Session =
         |> saveChangesTask
         |> Async.AwaitTask
 
-    let storeSingle (session : IDocumentSession) entity  =
+    let storeSingle entity (session : IDocumentSession) =
         session.Store([|entity|])
-    let storeMany (session : IDocumentSession) (entities : #seq<_>)  =
+    let storeMany (entities : #seq<_>) (session : IDocumentSession) =
         entities
         |> Seq.toArray
         |> session.Store

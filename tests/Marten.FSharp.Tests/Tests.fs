@@ -488,7 +488,7 @@ let CRUDTests = [
                 let sparky = newDog "Sparky" "Shoes"
 
                 use session = store.OpenSession()
-                sparky |> Session.storeSingle session
+                session |> Session.storeSingle  sparky
                 session |> Session.saveChanges
                 let actualDogs =
                     session
@@ -504,7 +504,7 @@ let CRUDTests = [
                 let spot = newDog "Spot" "Macbook"
 
                 use session = store.OpenSession()
-                [sparky ; spot] |> Session.storeMany session
+                session |> Session.storeMany [sparky ; spot]
                 session |> Session.saveChanges
                 let actualDogs =
                     session
@@ -536,7 +536,7 @@ let CRUDTests = [
                 let sparky = newDog "Sparky" "Shoes"
 
                 use session = store.OpenSession()
-                sparky |> Session.storeSingle session
+                session |> Session.storeSingle sparky
                 do! session |> Session.saveChangesAsync
                 let! actualDogs =
                     session
@@ -552,7 +552,7 @@ let CRUDTests = [
                 let spot = newDog "Spot" "Macbook"
 
                 use session = store.OpenSession()
-                [sparky ; spot] |> Session.storeMany session
+                session |> Session.storeMany [sparky ; spot]
                 do! session |> Session.saveChangesAsync
                 let! actualDogs =
                     session
@@ -647,7 +647,7 @@ let LinQQueryTests = [
                 let maffeoPolo = newPerson "Maffeo Polo" 801
                 use session = store.OpenSession ()
 
-                Session.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                session |> Session.storeMany [ marcoPolo; niccoloPolo; maffeoPolo ]
                 Session.saveChanges session
 
                 let peopleCount =
@@ -681,7 +681,7 @@ let LinQQueryTests = [
                 let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
                 let peopleGeneric = new System.Collections.Generic.List<Person>([ niccoloPolo; maffeoPolo; magellan ])
 
-                Session.storeMany session people
+                session |> Session.storeMany  people
                 Session.saveChanges session
 
                 let paged =
@@ -714,7 +714,7 @@ let LinQQueryTests = [
                     |> List.rev
                     |> fun x -> Collections.Generic.List<Person>(x)
 
-                Session.storeMany session people
+                session |> Session.storeMany people
                 Session.saveChanges session
 
                 let ordered =
@@ -749,12 +749,12 @@ let sqlTests = [
                 let maffeoPolo = newPerson "Maffeo Polo" 801
                 use session = store.OpenSession ()
 
-                Session.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                session |> Session.storeMany  [ marcoPolo; niccoloPolo; maffeoPolo ]
                 Session.saveChanges session
 
                 use session2 = store.OpenSession()
                 let personNameParameter =  { name = "Marco Polo"}
-                let person = Session.sql<Person> session2 "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Seq.head
+                let person = session2 |> Session.sql<Person>  "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Seq.head
                 Expect.equal person marcoPolo "Not marco"
     testCaseAsync'
         "sql with string paramter async" <|
@@ -764,12 +764,12 @@ let sqlTests = [
                 let maffeoPolo = newPerson "Maffeo Polo" 801
                 use session = store.OpenSession ()
 
-                Session.storeMany session [ marcoPolo; niccoloPolo; maffeoPolo ]
+                session |> Session.storeMany  [ marcoPolo; niccoloPolo; maffeoPolo ]
                 Session.saveChanges session
 
                 use session2 = store.OpenSession()
                 let personNameParameter =  { name = "Marco Polo"}
-                let! person = Session.sqlAsync<Person> session2 "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Async.map(Seq.head)
+                let! person = session2 |>Session.sqlAsync<Person>  "select data from mt_doc_tests_person where data->>'Name' = :name" [|personNameParameter|] |> Async.map(Seq.head)
                 Expect.equal person marcoPolo "Not marco"
             }
 ]
