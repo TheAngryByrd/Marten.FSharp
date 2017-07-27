@@ -83,20 +83,20 @@ module Session =
         | Int i -> deleteByInt<'a> i
         | Int64 i -> deleteByInt64<'a> i
 
-    let loadByGuid<'a> (id : Guid) (session : IDocumentSession) =
+    let loadByGuid<'a> (id : Guid) (session : IQuerySession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
-    let loadByInt<'a> (id : int) (session : IDocumentSession) =
+    let loadByInt<'a> (id : int) (session : IQuerySession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
-    let loadByInt64<'a> (id : int64) (session : IDocumentSession) =
+    let loadByInt64<'a> (id : int64) (session : IQuerySession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
-    let loadByString<'a> (id : string) (session : IDocumentSession) =
+    let loadByString<'a> (id : string) (session : IQuerySession) =
         session.Load<'a>(id)
         |> Option.ofNullableRecord
 
-    let load<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+    let load<'a> (pk : PrimaryKey) (session : IQuerySession) =
         match pk with
         | Guid g -> loadByGuid<'a> g
         | String s -> loadByString<'a> s
@@ -104,62 +104,62 @@ module Session =
         | Int64 i -> loadByInt64<'a> i
 
 
-    let loadByGuidTask<'a> (id : Guid) (session : IDocumentSession) =
+    let loadByGuidTask<'a> (id : Guid) (session : IQuerySession) =
         session.LoadAsync<'a>(id)
         |> Task.map Option.ofNullableRecord
 
-    let loadByIntTask<'a> (id : int32) (session : IDocumentSession) =
+    let loadByIntTask<'a> (id : int32) (session : IQuerySession) =
         session.LoadAsync<'a>(id)
         |> Task.map Option.ofNullableRecord
 
-    let loadByInt64Task<'a> (id : int64) (session : IDocumentSession) =
+    let loadByInt64Task<'a> (id : int64) (session : IQuerySession) =
         session.LoadAsync<'a>(id)
         |> Task.map Option.ofNullableRecord
 
-    let loadByStringTask<'a> (id : string ) (session : IDocumentSession) =
+    let loadByStringTask<'a> (id : string ) (session : IQuerySession) =
         session.LoadAsync<'a>(id)
         |> Task.map Option.ofNullableRecord
 
-    let loadByGuidAsync<'a> (id : Guid) (session : IDocumentSession) =
+    let loadByGuidAsync<'a> (id : Guid) (session : IQuerySession) =
         session
         |> loadByGuidTask<'a>(id)
         |> Async.AwaitTask
 
-    let loadByIntAsync<'a> (id : int32) (session : IDocumentSession) =
+    let loadByIntAsync<'a> (id : int32) (session : IQuerySession) =
         session
         |> loadByIntTask<'a>(id)
         |> Async.AwaitTask
 
-    let loadByInt64Async<'a> (id : int64) (session : IDocumentSession) =
+    let loadByInt64Async<'a> (id : int64) (session : IQuerySession) =
         session
         |> loadByInt64Task<'a>(id)
         |> Async.AwaitTask
 
-    let loadByStringAsync<'a> (id : string ) (session : IDocumentSession) =
+    let loadByStringAsync<'a> (id : string ) (session : IQuerySession) =
         session
         |> loadByStringTask<'a>(id)
         |> Async.AwaitTask
 
-    let loadTask<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+    let loadTask<'a> (pk : PrimaryKey) (session : IQuerySession) =
         session
         |>  match pk with
             | Guid g -> loadByGuidTask<'a> g
             | String s -> loadByStringTask<'a> s
             | Int i -> loadByIntTask<'a> i
             | Int64 i -> loadByInt64Task<'a> i
-    let loadAsync<'a> (pk : PrimaryKey) (session : IDocumentSession) =
+    let loadAsync<'a> (pk : PrimaryKey) (session : IQuerySession) =
         session
         |> loadTask<'a> pk
         |> Async.AwaitTask
 
-    let query<'a> (session : IDocumentSession) =
+    let query<'a> (session : IQuerySession) =
         session.Query<'a>()
 
-    let sql<'a> (session : IDocumentSession) string parameters =
+    let sql<'a> (session : IQuerySession) string parameters =
         session.Query<'a>(string, parameters)
-    let sqlTask<'a> (session : IDocumentSession) string parameters =
+    let sqlTask<'a> (session : IQuerySession) string parameters =
         session.QueryAsync<'a>(string, parameters=parameters)
-    let sqlAsync<'a> (session : IDocumentSession) string parameters =
+    let sqlAsync<'a> (session : IQuerySession) string parameters =
         sqlTask<'a> session string parameters
         |> Async.AwaitTask
 
