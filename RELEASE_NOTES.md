@@ -1,5 +1,4 @@
-
-#### 0.1.0-alpha009 - 06.07.2017
+#### 0.1.0 - 28.07.2017
 * BREAKING: Api Design Changes (https://github.com/TheAngryByrd/Marten.FSharp/pull/8)
   * Functions associated with IQuerySession and IDocumentSession have been moved to Session module
   * Functions associated with IQueryable have been moved to Queryable module
