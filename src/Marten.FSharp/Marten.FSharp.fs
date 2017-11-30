@@ -44,9 +44,17 @@ module Lambda =
     let rec translateExpr (linq:Expression) =
         match linq with
         | :? MethodCallExpression as mc ->
-            let le = mc.Arguments.[0] :?> LambdaExpression
-            let args, body = translateExpr le.Body
-            le.Parameters.[0] :: args, body
+            match mc.Arguments.[0] with
+            | :? LambdaExpression as le ->
+                let args, body = translateExpr le.Body
+                le.Parameters.[0] :: args, body
+            | :? System.Linq.Expressions.MemberExpression as me ->
+                // Not sure what to do here.  I'm sure there will be hidden bugs
+                [], linq
+            | _ as unknown ->
+                // Not sure what to do here.  I'm sure there will be hidden bugs
+                // x.GetType() |> printfn "x: %A"
+                [], linq
         | _ -> [], linq
 
     let inline toLinq<'a> expr =
