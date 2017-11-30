@@ -1,3 +1,6 @@
+#### 0.1.1-alpha001 - 30.11.2017
+* BUGFIX: [Fixed using IsOneOf in Queryable.filter](https://github.com/TheAngryByrd/Marten.FSharp/pull/12)
+
 #### 0.1.0 - 28.07.2017
 * BREAKING: Api Design Changes (https://github.com/TheAngryByrd/Marten.FSharp/pull/8)
   * Functions associated with IQuerySession and IDocumentSession have been moved to Session module
