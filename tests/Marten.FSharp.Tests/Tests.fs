@@ -260,6 +260,31 @@ let filterTests = [
                     |> Queryable.filter <@fun d -> d.Name = "Spark" @>
                     |> Queryable.head
                 Expect.equal expectedDog actualDog  "Should be one dog!"
+    testCase'
+        "filter IsOneOf" <|
+            fun (db,store) ->
+                let expectedDog = saveDog' store
+                let names = [|expectedDog.Name; "Fido"; "Snape"|]
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                    |> Session.query<Dog>
+                    |> Queryable.filter <@fun d -> d.Name.IsOneOf(names) @>
+                    |> Queryable.head
+                Expect.equal expectedDog actualDog  "Should be one dog!"
+    testCase'
+        "filter IsOneOf not in list" <|
+            fun (db,store) ->
+                let expectedDog = saveDog' store
+                let names = [|"Fido"; "Snape"|]
+                use session = store.OpenSession()
+                let actualDog =
+                    session
+                    |> Session.query<Dog>
+                    |> Queryable.filter <@fun d -> d.Name.IsOneOf(names) @>
+                    |> Queryable.tryHead
+
+                Expect.isNone actualDog "No dog!"
 
 ]
 type User = {
