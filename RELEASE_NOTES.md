@@ -1,3 +1,6 @@
+#### 0.2.0 - 18.04.2018
+* BREAKING: [Update to Marten 2.7](https://github.com/TheAngryByrd/Marten.FSharp/pull/14)
+
 #### 0.1.1 - 30.11.2017
 * BUGFIX: [Fixed using IsOneOf in Queryable.filter](https://github.com/TheAngryByrd/Marten.FSharp/pull/12)
 
