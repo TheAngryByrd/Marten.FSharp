@@ -1,27 +1,23 @@
-<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>netcoreapp1.1;net461</TargetFrameworks>
+    <TargetFrameworks>netcoreapp1.1;net461;netcoreapp2.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Tests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
-  <!--<PropertyGroup Condition="'$(TargetFramework)'=='netcoreapp1.1'">
-    <PackageTargetFallback>portable-net45+win8+wp8+wpa81</PackageTargetFallback>
-  </PropertyGroup>-->
+
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.1.*" />
-    <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
-    <PackageReference Include="Marten" Version="1.5.*" />
-    <PackageReference Include="Expecto" Version="5.0.0" />
+    <PackageReference Include="FSharp.Core" Version="4.2.3" />
+    <PackageReference Include="Expecto" Version="6.0.0" />
     <!--One day fscheck will work with .net core-->
     <!--<PackageReference Include="Expecto.FsCheck" Version="5.0.0-*" />-->
     <ProjectReference Include="../../src/Marten.FSharp/Marten.FSharp.fsproj" />
-    <DotNetCliToolReference Include="dotnet-mono" Version="*" />
-    <DotNetCliToolReference Include="Microsoft.DotNet.Watcher.Tools" Version="1.0.0" />
+    <DotNetCliToolReference Include="dotnet-mono" Version="0.5.2" />
+    <DotNetCliToolReference Include="Microsoft.DotNet.Watcher.Tools" Version="2.0.1" />
   </ItemGroup>
 </Project>
 

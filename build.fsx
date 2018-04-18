@@ -67,7 +67,7 @@ let getTargetFramework tf =
     | "net45" | "net451" | "net452"
     | "net46" | "net461" | "net462" ->
         Full tf
-    | "netcoreapp1.0" | "netcoreapp1.1" ->
+    | "netcoreapp1.0" | "netcoreapp1.1" | "netcoreapp2.0" ->
         Core tf
     | _ -> failwithf "Unknown TargetFramework %s" tf
 

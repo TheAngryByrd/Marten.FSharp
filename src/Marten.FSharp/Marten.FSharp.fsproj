@@ -1,4 +1,4 @@
-<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
       <Title>Marten.FSharp</Title>
@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.6;net46</TargetFrameworks>
+    <TargetFrameworks>netstandard1.6;net46;netstandard2.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
@@ -28,16 +28,10 @@
   <ItemGroup>
     <Compile Include="Marten.FSharp.fs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)'=='net46'">
-    <PackageReference Include="FSharp.Core" Version="4.0.0.*" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)'=='netstandard1.6'">
-    <PackageReference Include="FSharp.Core" Version="4.1.*" />
-  </ItemGroup>
-  <ItemGroup>
 
-    <PackageReference Include="Marten" Version="1.5.*" />
-    <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.2.3" />
+    <PackageReference Include="Marten" Version="2.7.1" />
   </ItemGroup>
 
 
