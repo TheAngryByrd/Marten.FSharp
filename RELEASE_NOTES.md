@@ -1,3 +1,7 @@
+#### 0.3.0 - 25.04.2018
+* FEATURE: [Added Session.deleteBy a wrapper for DeleteWhere.](https://github.com/TheAngryByrd/Marten.FSharp/pull/15)
+* BUGFIX:  [Fixed Session.load and Session.delete APIs](https://github.com/TheAngryByrd/Marten.FSharp/pull/15)
+
 #### 0.2.0 - 18.04.2018
 * BREAKING: [Update to Marten 2.7](https://github.com/TheAngryByrd/Marten.FSharp/pull/14)
 
@@ -14,4 +18,4 @@
 * FEATURE:  Ability to query with SQL (https://github.com/TheAngryByrd/Marten.FSharp/pull/6)
 * FEATURE:  Improve Patch API and added other Linq queries (https://github.com/TheAngryByrd/Marten.FSharp/pull/4) via @ibnuda
 * FEATURE:  Patch Functionality (https://github.com/TheAngryByrd/Marten.FSharp/pull/3) via @ibnuda 
-* BREAKING: API Modiciations
+* BREAKING: API Modifications
