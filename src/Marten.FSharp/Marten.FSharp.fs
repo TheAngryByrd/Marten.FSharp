@@ -85,11 +85,18 @@ module Session =
         session.Delete<'a>(id)
 
     let delete<'a> (pk : PrimaryKey) (session : IDocumentSession) =
-        match pk with
-        | Guid g -> deleteByGuid<'a> g
-        | String s -> deleteByString<'a> s
-        | Int i -> deleteByInt<'a> i
-        | Int64 i -> deleteByInt64<'a> i
+        session
+        |> match pk with
+           | Guid g -> deleteByGuid<'a> g
+           | String s -> deleteByString<'a> s
+           | Int i -> deleteByInt<'a> i
+           | Int64 i -> deleteByInt64<'a> i
+
+    let deleteBy<'a> (f : Quotations.Expr<'a -> bool>) (session : IDocumentSession) =
+        f
+        |> Lambda.ofArity1
+        |> session.DeleteWhere
+
 
     let loadByGuid<'a> (id : Guid) (session : IQuerySession) =
         session.Load<'a>(id)
@@ -105,11 +112,12 @@ module Session =
         |> Option.ofNullableRecord
 
     let load<'a> (pk : PrimaryKey) (session : IQuerySession) =
-        match pk with
-        | Guid g -> loadByGuid<'a> g
-        | String s -> loadByString<'a> s
-        | Int i -> loadByInt<'a> i
-        | Int64 i -> loadByInt64<'a> i
+        session
+        |> match pk with
+           | Guid g -> loadByGuid<'a> g
+           | String s -> loadByString<'a> s
+           | Int i -> loadByInt<'a> i
+           | Int64 i -> loadByInt64<'a> i
 
 
     let loadByGuidTask<'a> (id : Guid) (session : IQuerySession) =
@@ -219,6 +227,7 @@ module Queryable =
     //     q.Aggregate(
     //         seed,
     //         f|> Lambda.ofArity2)
+
 
 
     let exactlyOne (q : IQueryable<'a>) =
