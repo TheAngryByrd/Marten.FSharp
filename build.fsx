@@ -102,7 +102,7 @@ let setPostgresEnvVars () =
     //if environment variables aren't set, assume defaults
     setEnvToIfNotExist "POSTGRES_HOST" "localhost"
     //Postgres.app on osx default user is the person, not postgres
-    setEnvToIfNotExist "POSTGRES_USER" (if isMacOS then (whoami ()) else "postgres")
+    setEnvToIfNotExist "POSTGRES_USER" "postgres"
     setEnvToIfNotExist "POSTGRES_PASS" "postgres"
     setEnvToIfNotExist "POSTGRES_DB" "postgres"
 
@@ -202,5 +202,8 @@ Target "Release" (fun _ ->
   ==> "DotnetPack"
   ==> "Publish"
   ==> "Release"
+
+"DotnetRestore"
+ ==> "WatchTests"
 
 RunTargetOrDefault "DotnetPack"

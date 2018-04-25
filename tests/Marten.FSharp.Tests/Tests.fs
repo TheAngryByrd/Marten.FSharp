@@ -555,6 +555,30 @@ let CRUDTests = [
                 Expect.isEmpty actualDogs "Should be no more dogs"
 
 
+    testCase'
+        "storeMany/deleteBy/saveChanges" <|
+            fun (db, store) ->
+                let sparky = newDog "Sparky" "Shoes"
+                let spot = newDog "Spot" "Macbook"
+
+                use session = store.OpenSession()
+                session |> Session.storeMany [sparky ; spot]
+                session |> Session.saveChanges
+                let actualDogs =
+                    session
+                    |> Session.query<Dog>
+                    |> Queryable.toList
+                Expect.contains actualDogs sparky "Should contain same dog!"
+                Expect.contains actualDogs spot "Should contain same dog!"
+
+                session |> Session.deleteBy<Dog> <@fun d -> d.Name = "Sparky"@>
+                session |> Session.saveChanges
+                let actualDogs =
+                    session
+                    |> Session.query<Dog>
+                    |> Queryable.toList
+                Expect.contains actualDogs spot "Should contain same dog!"
+
     testCaseAsync'
         "storeSingle/saveChangesAsync" <|
             fun (db, store) -> async {
