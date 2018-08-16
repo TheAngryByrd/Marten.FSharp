@@ -9,11 +9,9 @@ addons:
 
 services:
     - postgresql
-dotnet: 2.1.101
+dotnet: 2.1.301
 
 mono:
-  - 4.6.1
-  - 4.8.1
   - latest # => "stable release"
   - alpha
   - beta
@@ -36,7 +34,6 @@ before_script:
 
 script:  
   - ./build.sh
-
 
 matrix:
 

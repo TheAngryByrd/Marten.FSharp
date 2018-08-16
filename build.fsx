@@ -1,4 +1,11 @@
+#if !FAKE
+#r "netstandard"
+#r "System.Runtime.dll"
+#endif
+
 #r @"packages/build/FAKE/tools/FakeLib.dll"
+
+
 open Fake
 open Fake.Git
 open Fake.AssemblyInfoFile
@@ -126,7 +133,7 @@ let runTests modifyArgs =
 Target "DotnetTest" (fun _ ->
     runTests id
     |> Seq.toArray
-    |> Array.Parallel.iter (invoke)
+    |> Array.iter (invoke)
 )
 let execProcAndReturnMessages filename args =
     let args' = args |> String.concat " "
