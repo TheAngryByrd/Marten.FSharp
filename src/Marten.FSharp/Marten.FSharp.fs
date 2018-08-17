@@ -378,8 +378,25 @@ module Queryable =
         |> Lambda.ofArity1
         |> q.Count
 
-    let countAsync<'a> (q: IQueryable<'a>) = q.CountAsync()
-    let countAsyncWhere<'a> f (q: IQueryable<'a>) = q.CountAsync(Lambda.ofArity1 f)
+    let countTaskCt ct (q: IQueryable<'a>) = q.CountAsync(ct)
+    let countTask q = countTaskCt CancellationToken.None q
+    let countAsync q = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> countTaskCt ct
+            |> Async.AwaitTask
+    }
+
+    let countWhereTaskCt ct f (q: IQueryable<'a>) = q.CountAsync(Lambda.ofArity1 f, ct)
+    let countWhereTask f q = countWhereTaskCt CancellationToken.None f q
+    let countWhereAsync f q = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> countWhereTaskCt ct f
+            |> Async.AwaitTask
+    }
 
     let min<'a, 'b when 'b : comparison> (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
