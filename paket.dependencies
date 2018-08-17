@@ -1,7 +1,7 @@
 source https://www.nuget.org/api/v2
 
 storage: none
-framework: netstandard1.6, net462, netstandard2.0
+framework: netstandard1.6, net462, netstandard2.0, netcoreapp2.1
 
 nuget Marten
 nuget FSharp.Core ~> 4.3.0

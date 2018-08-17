@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net462;netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp2.1;net462;</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Tests.fs" />

@@ -74,14 +74,14 @@ let getTargetFramework tf =
     | "net45" | "net451" | "net452"
     | "net46" | "net461" | "net462" ->
         Full tf
-    | "netcoreapp1.0" | "netcoreapp1.1" | "netcoreapp2.0" ->
+    | "netcoreapp1.0" | "netcoreapp1.1" | "netcoreapp2.0" | "netcoreapp2.1" | "netstandard1.6" | "netstandard2.0" ->
         Core tf
     | _ -> failwithf "Unknown TargetFramework %s" tf
 
 let getTargetFrameworksFromProjectFile (projFile : string)=
     let doc = Xml.XmlDocument()
     doc.Load(projFile)
-    doc.GetElementsByTagName("TargetFrameworks").[0].InnerText.Split(';')
+    doc.GetElementsByTagName("TargetFrameworks").[0].InnerText.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)
     |> Seq.map getTargetFramework
     |> Seq.toList
 
