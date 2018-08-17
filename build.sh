@@ -93,7 +93,6 @@ run $PAKET_EXE restore
 
 # psql -d template1 -c 'create extension if not exists plv8;' 
 
-
 run $FAKE_EXE "$@" $FSIARGS $FSIARGS2 build.fsx
 
 set +e

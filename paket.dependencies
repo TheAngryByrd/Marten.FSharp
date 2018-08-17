@@ -1,5 +1,16 @@
 source https://www.nuget.org/api/v2
 
+storage: none
+framework: netstandard1.6, net462, netstandard2.0, netcoreapp2.1
+
+nuget Marten
+nuget FSharp.Core ~> 4.3.0
+nuget Npgsql ~> 3.0 # npgsql 4.x is not supported by Marten yet but that dependency isn't capped by Marten so we have to cap it here.
+
+nuget Expecto
+
+clitool dotnet-mono
+
 group Build
     source https://www.nuget.org/api/v2
     nuget FAKE

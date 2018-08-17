@@ -1,25 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-      <Title>Marten.FSharp</Title>
-      <Description>A set of FSharp wrappers around Marten</Description>
-      <PackageTags>Marten, postgres, f#, fsharp</PackageTags>
-      <PackageProjectUrl>https://github.com/TheAngryByrd/Marten.FSharp</PackageProjectUrl>
-      <PackageLicenseUrl>https://github.com/TheAngryByrd/Marten.FSharp/blob/master/LICENSE.md</PackageLicenseUrl>
-      <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-      <RepositoryType>git</RepositoryType>
-      <Authors>Jimmy Byrd</Authors>
-      <RepositoryUrl>https://github.com/TheAngryByrd/Marten.FSharp</RepositoryUrl>
-      <!-- owners is not supported in MSBuild -->
-  </PropertyGroup>
-  <PropertyGroup>
-      <NeutralLanguage>en-US</NeutralLanguage>
-      <AssemblyTitle>Marten.FSharp</AssemblyTitle>
-      <projectUrl></projectUrl>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFrameworks>netstandard1.6;net46;netstandard2.0</TargetFrameworks>
+    <Title>Marten.FSharp</Title>
+    <Description>A set of FSharp wrappers around Marten</Description>
+    <PackageTags>Marten, postgres, f#, fsharp</PackageTags>
+    <PackageProjectUrl>https://github.com/TheAngryByrd/Marten.FSharp</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/TheAngryByrd/Marten.FSharp/blob/master/LICENSE.md</PackageLicenseUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryType>git</RepositoryType>
+    <Authors>Jimmy Byrd</Authors>
+    <RepositoryUrl>https://github.com/TheAngryByrd/Marten.FSharp</RepositoryUrl>
+    <!-- owners is not supported in MSBuild -->
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <AssemblyTitle>Marten.FSharp</AssemblyTitle>
+    <projectUrl>
+    </projectUrl>
+    <TargetFrameworks>netstandard1.6;net462;netstandard2.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
@@ -28,11 +24,5 @@
   <ItemGroup>
     <Compile Include="Marten.FSharp.fs" />
   </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.2.3" />
-    <PackageReference Include="Marten" Version="2.7.1" />
-  </ItemGroup>
-
-
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
