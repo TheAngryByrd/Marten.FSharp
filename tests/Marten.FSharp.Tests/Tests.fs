@@ -92,7 +92,13 @@ module DatabaseTestHelpers =
     let db () = "POSTGRES_DB"|> getEnvOrDefault "postgres"
     let superUserConnStr () = createConnString (host ()) (user ()) (pass()) (db())
 
-    let getNewDatabase () = superUserConnStr () |>  DisposableDatabase.Create
+    let getNewDatabase () =
+        let rec inner () =
+            try
+                superUserConnStr () |>  DisposableDatabase.Create
+            with e ->
+                inner ()
+        inner ()
 
     let getStore (database : DisposableDatabase) = database.Conn |> string |> DocumentStore.For
 
