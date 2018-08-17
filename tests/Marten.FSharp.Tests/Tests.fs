@@ -80,13 +80,16 @@ module DatabaseTestHelpers =
             member x.Dispose() =
                 dropDatabase (superConn |> string) databaseName
 
-    let getEnv str =
-        System.Environment.GetEnvironmentVariable str
+    let getEnvOrDefault defaultVal str =
+        let envVar = System.Environment.GetEnvironmentVariable str
+        if String.IsNullOrEmpty envVar then defaultVal
+        else envVar
 
-    let host () = getEnv "POSTGRES_HOST"
-    let user () = getEnv "POSTGRES_USER"
-    let pass () = getEnv "POSTGRES_PASS"
-    let db () = getEnv "POSTGRES_DB"
+
+    let host () = "POSTGRES_HOST" |> getEnvOrDefault "localhost"
+    let user () = "POSTGRES_USER" |> getEnvOrDefault "postgres"
+    let pass () =  "POSTGRES_PASS"|> getEnvOrDefault "postgres"
+    let db () = "POSTGRES_DB"|> getEnvOrDefault "postgres"
     let superUserConnStr () = createConnString (host ()) (user ()) (pass()) (db())
 
     let getNewDatabase () = superUserConnStr () |>  DisposableDatabase.Create

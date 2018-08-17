@@ -80,18 +80,18 @@ run $PAKET_EXE restore
 [ ! -e build.fsx ] && run $FAKE_EXE init.fsx
 
 
-if lsof -ti :5432 > /dev/null
-then 
-   echo "postgres already started"
-else 
-  echo "starting postgres"
-  rm -rf data/
-  initdb -D data/
-  postgres -D data &
-  sleep 3  
-fi
+# if lsof -ti :5432 > /dev/null
+# then 
+#    echo "postgres already started"
+# else 
+#   echo "starting postgres"
+#   rm -rf data/
+#   initdb -D data/
+#   postgres -D data &
+#   sleep 3  
+# fi
 
-psql -d template1 -c 'create extension if not exists plv8;' 
+# psql -d template1 -c 'create extension if not exists plv8;' 
 
 
 run $FAKE_EXE "$@" $FSIARGS $FSIARGS2 build.fsx

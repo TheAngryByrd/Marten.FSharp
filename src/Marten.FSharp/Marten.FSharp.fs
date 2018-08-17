@@ -33,6 +33,7 @@ module Option =
 
 open System
 open System.Linq.Expressions
+open System.Threading
 
 module Lambda =
     open System.Linq.Expressions
@@ -119,76 +120,123 @@ module Session =
            | Int i -> loadByInt<'a> i
            | Int64 i -> loadByInt64<'a> i
 
+    let loadByGuidTaskCt<'a> (cancellationToken : CancellationToken) (id : Guid) (session : IQuerySession) =
+        session.LoadAsync<'a>(id,cancellationToken)
+        |> Task.map Option.ofNullableRecord
 
     let loadByGuidTask<'a> (id : Guid) (session : IQuerySession) =
-        session.LoadAsync<'a>(id)
+        loadByGuidTaskCt<'a> CancellationToken.None id session
+
+    let loadByIntTaskCt<'a> (cancellationToken : CancellationToken) (id : int32) (session : IQuerySession) =
+        session.LoadAsync<'a>(id,cancellationToken)
         |> Task.map Option.ofNullableRecord
 
     let loadByIntTask<'a> (id : int32) (session : IQuerySession) =
-        session.LoadAsync<'a>(id)
+        loadByIntTaskCt<'a> CancellationToken.None id session
+
+    let loadByInt64TaskCt<'a> (cancellationToken : CancellationToken) (id : int64) (session : IQuerySession) =
+        session.LoadAsync<'a>(id,cancellationToken)
         |> Task.map Option.ofNullableRecord
 
     let loadByInt64Task<'a> (id : int64) (session : IQuerySession) =
-        session.LoadAsync<'a>(id)
+        loadByInt64TaskCt<'a> CancellationToken.None id session
+
+    let loadByStringTaskCt<'a> (cancellationToken : CancellationToken) (id : string) (session : IQuerySession) =
+        session.LoadAsync<'a>(id,cancellationToken)
         |> Task.map Option.ofNullableRecord
 
     let loadByStringTask<'a> (id : string ) (session : IQuerySession) =
-        session.LoadAsync<'a>(id)
-        |> Task.map Option.ofNullableRecord
+        loadByStringTaskCt<'a> CancellationToken.None id session
 
-    let loadByGuidAsync<'a> (id : Guid) (session : IQuerySession) =
-        session
-        |> loadByGuidTask<'a>(id)
-        |> Async.AwaitTask
+    let loadByGuidAsync<'a> (id : Guid) (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> loadByGuidTaskCt<'a> ct id
+            |> Async.AwaitTask
+    }
 
-    let loadByIntAsync<'a> (id : int32) (session : IQuerySession) =
-        session
-        |> loadByIntTask<'a>(id)
-        |> Async.AwaitTask
+    let loadByIntAsync<'a> (id : int32) (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> loadByIntTaskCt<'a> ct id
+            |> Async.AwaitTask
+    }
 
-    let loadByInt64Async<'a> (id : int64) (session : IQuerySession) =
-        session
-        |> loadByInt64Task<'a>(id)
-        |> Async.AwaitTask
+    let loadByInt64Async<'a> (id : int64) (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> loadByInt64TaskCt<'a> ct id
+            |> Async.AwaitTask
+    }
 
-    let loadByStringAsync<'a> (id : string ) (session : IQuerySession) =
-        session
-        |> loadByStringTask<'a>(id)
-        |> Async.AwaitTask
+    let loadByStringAsync<'a> (id : string ) (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> loadByStringTaskCt<'a> ct id
+            |> Async.AwaitTask
+    }
 
-    let loadTask<'a> (pk : PrimaryKey) (session : IQuerySession) =
+
+    let loadTaskCt<'a> (cancellationToken : CancellationToken) (pk : PrimaryKey) (session : IQuerySession) =
         session
         |>  match pk with
-            | Guid g -> loadByGuidTask<'a> g
-            | String s -> loadByStringTask<'a> s
-            | Int i -> loadByIntTask<'a> i
-            | Int64 i -> loadByInt64Task<'a> i
-    let loadAsync<'a> (pk : PrimaryKey) (session : IQuerySession) =
-        session
-        |> loadTask<'a> pk
-        |> Async.AwaitTask
+            | Guid g -> loadByGuidTaskCt<'a> cancellationToken g
+            | String s -> loadByStringTaskCt<'a> cancellationToken s
+            | Int i -> loadByIntTaskCt<'a> cancellationToken i
+            | Int64 i -> loadByInt64TaskCt<'a> cancellationToken i
+
+    let loadTask<'a> (pk : PrimaryKey) (session : IQuerySession) =
+        loadTaskCt CancellationToken.None pk session
+
+    let loadAsync<'a> (pk : PrimaryKey) (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> loadTaskCt<'a> ct pk
+            |> Async.AwaitTask
+    }
 
     let query<'a> (session : IQuerySession) =
         session.Query<'a>()
 
     let sql<'a> string parameters (session : IQuerySession)  =
         session.Query<'a>(string, parameters)
+
+    let sqlTaskCt<'a> (cancellationToken : CancellationToken) string parameters  (session : IQuerySession)=
+        session.QueryAsync<'a>(string, cancellationToken, parameters=parameters)
+
     let sqlTask<'a> string parameters  (session : IQuerySession)=
-        session.QueryAsync<'a>(string, parameters=parameters)
-    let sqlAsync<'a> string parameters (session : IQuerySession) =
-        session
-        |> sqlTask<'a>  string parameters
-        |> Async.AwaitTask
+        sqlTaskCt CancellationToken.None string parameters session
+
+    let sqlAsync<'a> string parameters (session : IQuerySession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> sqlTaskCt<'a> ct string parameters
+            |> Async.AwaitTask
+    }
 
 
     let saveChanges (session : IDocumentSession) =
         session.SaveChanges()
+
+    let saveChangesTaskCt (cancellationToken : CancellationToken) (session : IDocumentSession) =
+        session.SaveChangesAsync(cancellationToken)
+
     let saveChangesTask (session : IDocumentSession) =
-        session.SaveChangesAsync()
-    let saveChangesAsync (session : IDocumentSession) =
-        session
-        |> saveChangesTask
-        |> Async.AwaitTask
+        saveChangesTaskCt CancellationToken.None
+
+    let saveChangesAsync (session : IDocumentSession) = async {
+        let! ct = Async.CancellationToken
+        return!
+            session
+            |> saveChangesTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let storeSingle entity (session : IDocumentSession) =
         session.Store([|entity|])
@@ -202,7 +250,6 @@ module Session =
         session.Patch<'a>(id)
 
     module Patch =
-
         let set<'a, 'b> (part : Quotations.Expr<'a -> 'b>) (newVal : 'b) (pExpr : Patching.IPatchExpression<'a>) =
             let func = Lambda.ofArity1 part
             pExpr.Set<'b>(func, newVal)
@@ -214,7 +261,6 @@ module Session =
             pExpr.Increment(func, inc)
 
 module Queryable =
-
     open System.Linq
     open Marten.Linq
     // not supported
@@ -228,16 +274,22 @@ module Queryable =
     //         seed,
     //         f|> Lambda.ofArity2)
 
-
-
     let exactlyOne (q : IQueryable<'a>) =
         q.Single()
+
+    let exactlyOneTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
+        q.SingleAsync(cancellationToken)
+
     let exactlyOneTask (q : IQueryable<'a>) =
-        q.SingleAsync()
-    let exactlyOneAsync (q : IQueryable<'a>) =
-        q
-        |> exactlyOneTask
-        |> Async.AwaitTask
+        exactlyOneTaskCt CancellationToken.None q
+
+    let exactlyOneAsync (q : IQueryable<'a>) = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> exactlyOneTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let filter (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
         f
@@ -246,13 +298,20 @@ module Queryable =
 
     let head (q : IQueryable<'a>) =
         q.First()
-    let headTask (q : IQueryable<'a>) =
-        q.FirstAsync()
-    let headAsync (q : IQueryable<'a>) =
-        q
-        |> headTask
-        |> Async.AwaitTask
 
+    let headTaskCt (cancellationToken : CancellationToken)  (q : IQueryable<'a>) =
+        q.FirstAsync(cancellationToken)
+
+    let headTask (q : IQueryable<'a>) =
+        headTaskCt CancellationToken.None q
+
+    let headAsync (q : IQueryable<'a>) = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> headTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let map (f : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
         f
@@ -261,36 +320,58 @@ module Queryable =
 
     let toList (q : IQueryable<'a>) =
         q.ToList()
+
+    let toListTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
+        q.ToListAsync(cancellationToken)
+
     let toListTask (q : IQueryable<'a>) =
-        q.ToListAsync()
-    let toListAsync (q : IQueryable<'a>) =
-        q
-        |> toListTask
-        |> Async.AwaitTask
+        toListTaskCt CancellationToken.None q
+
+    let toListAsync (q : IQueryable<'a>) = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> toListTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let tryExactlyOne (q : IQueryable<'a>) =
         q.SingleOrDefault()
         |> Option.ofNullableRecord
 
-    let tryExactlyOneTask (q : IQueryable<'a>) =
-        q.SingleOrDefaultAsync()
+    let tryExactlyOneTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
+        q.SingleOrDefaultAsync(cancellationToken)
         |> Task.map Option.ofNullableRecord
-    let tryExactlyOneAsync (q : IQueryable<'a>) =
-        q
-        |> tryExactlyOneTask
-        |> Async.AwaitTask
+
+    let tryExactlyOneTask (q : IQueryable<'a>) =
+        tryExactlyOneTaskCt CancellationToken.None q
+
+    let tryExactlyOneAsync (q : IQueryable<'a>) = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> tryExactlyOneTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let tryHead (q : IQueryable<'a>) =
         q.FirstOrDefault()
         |> Option.ofNullableRecord
 
-    let tryHeadTask (q : IQueryable<'a>) =
-        q.FirstOrDefaultAsync()
+    let tryHeadTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
+        q.FirstOrDefaultAsync(cancellationToken)
         |> Task.map Option.ofNullableRecord
-    let tryHeadAsync (q : IQueryable<'a>) =
-        q
-        |> tryHeadTask
-        |> Async.AwaitTask
+
+    let tryHeadTask (q : IQueryable<'a>) =
+        tryHeadTaskCt CancellationToken.None q
+
+    let tryHeadAsync (q : IQueryable<'a>) = async {
+        let! ct = Async.CancellationToken
+        return!
+            q
+            |> tryHeadTaskCt ct
+            |> Async.AwaitTask
+    }
 
     let count<'a> (f : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
         f
