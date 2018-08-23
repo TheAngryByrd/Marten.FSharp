@@ -228,7 +228,7 @@ module Session =
         session.SaveChangesAsync(cancellationToken)
 
     let saveChangesTask (session : IDocumentSession) =
-        saveChangesTaskCt CancellationToken.None
+        saveChangesTaskCt CancellationToken.None session
 
     let saveChangesAsync (session : IDocumentSession) = async {
         let! ct = Async.CancellationToken
