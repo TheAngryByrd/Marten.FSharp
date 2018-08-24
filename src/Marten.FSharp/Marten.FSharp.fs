@@ -210,7 +210,7 @@ module Session =
         session.QueryAsync<'a>(string, cancellationToken, parameters=parameters)
 
     let sqlTask<'a> string parameters  (session : IQuerySession)=
-        sqlTaskCt CancellationToken.None string parameters session
+        sqlTaskCt<'a> CancellationToken.None string parameters session
 
     let sqlAsync<'a> string parameters (session : IQuerySession) = async {
         let! ct = Async.CancellationToken
@@ -228,7 +228,7 @@ module Session =
         session.SaveChangesAsync(cancellationToken)
 
     let saveChangesTask (session : IDocumentSession) =
-        saveChangesTaskCt CancellationToken.None
+        saveChangesTaskCt CancellationToken.None session
 
     let saveChangesAsync (session : IDocumentSession) = async {
         let! ct = Async.CancellationToken
