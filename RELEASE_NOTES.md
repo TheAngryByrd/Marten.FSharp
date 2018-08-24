@@ -1,8 +1,11 @@
+#### 0.4.1 - 23.08.2018
+* BUGFIX: Fix misc api errors (https://github.com/TheAngryByrd/Marten.FSharp/pull/21/files)
+
 #### 0.4.0 - 17.08.2018
-* FEATURE: Revealing cancellable version of task/async calls
-* FEATURE: Reveal count apis
-* INFRASTRUCTURE: Update Marten 2.9
-* INFRASTRUCTURE: Use paket
+* FEATURE: Revealing cancellable version of task/async calls (https://github.com/TheAngryByrd/Marten.FSharp/pull/19)
+* FEATURE: Reveal count apis (https://github.com/TheAngryByrd/Marten.FSharp/pull/20)
+* INFRASTRUCTURE: Update Marten 2.9 (https://github.com/TheAngryByrd/Marten.FSharp/pull/20)
+* INFRASTRUCTURE: Use paket (https://github.com/TheAngryByrd/Marten.FSharp/pull/20)
 
 #### 0.3.0 - 25.04.2018
 * FEATURE: [Added Session.deleteBy a wrapper for DeleteWhere.](https://github.com/TheAngryByrd/Marten.FSharp/pull/15)
