@@ -647,7 +647,7 @@ let PatchTests = [
                 use session = store.OpenSession()
 
                 session
-                |> Session.patch<Person>(marcoPolo.Id)
+                |> Session.patchByGuid<Person>(marcoPolo.Id)
                 |> Session.Patch.set <@ fun dog -> dog.Age @> 200
                 Session.saveChanges session
 
@@ -666,7 +666,7 @@ let PatchTests = [
                 use session = store.OpenSession()
 
                 session
-                |> Session.patch<Person>(marcoPolo.Id)
+                |> Session.patchByGuid<Person>(marcoPolo.Id)
                 |> Session.Patch.inc<Person> <@ fun marco -> marco.Age @>
                 Session.saveChanges session
 
@@ -684,7 +684,7 @@ let PatchTests = [
 
                 use session = store.OpenSession()
                 session
-                |> Session.patch<Person>(marcoPolo.Id)
+                |> Session.patchByGuid<Person>(marcoPolo.Id)
                 |> Session.Patch.incPlural<Person> <@ fun marco -> marco.Age @> 3
                 Session.saveChanges session
 
@@ -711,7 +711,7 @@ let LinQQueryTests = [
                 let peopleCount =
                     session
                     |> Session.query<Person>
-                    |> Queryable.count<Person> <@ fun person -> person.Age > 500 @>
+                    |> Queryable.countWhere<Person> <@ fun person -> person.Age > 500 @>
                 Expect.equal 2 peopleCount "Should be the same"
 
                 let oldest =
