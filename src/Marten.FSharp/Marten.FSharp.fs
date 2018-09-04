@@ -30,8 +30,6 @@ module AsyncExtensions =
 module Option =
     /// **Description**
     /// Creates an option from a potentially null record type.
-    /// If you use this often, consider adding the `AllowNullLiteral` flag on your record definition
-    /// and using `Option.ofObj`
     ///
     /// **Parameters**
     ///   * `record` - parameter of type `'a`
