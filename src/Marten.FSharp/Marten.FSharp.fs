@@ -18,15 +18,21 @@ module AsyncExtensions =
         /// Creates an async computation that runs a mapping function on the result of an async computation
         let map f x = x |> bind (f >> singleton)
 
+    [<RequireQualifiedAccess>]
     module Task =
         open System.Threading.Tasks
+
+        /// Applies a mapping function to the result of a successful task
         let map f (t : Task<_>) = t.ContinueWith(fun (x : Task<_>) -> x.Result |> f)
 
 
 
 module Option =
     /// **Description**
-    /// Creates an option from a potentially null record type
+    /// Creates an option from a potentially null record type.
+    /// If you use this often, consider adding the `AllowNullLiteral` flag on your record definition
+    /// and using `Option.ofObj`
+    ///
     /// **Parameters**
     ///   * `record` - parameter of type `'a`
     ///
@@ -1123,7 +1129,7 @@ module Session =
 module Queryable =
     open System.Linq
     open Marten.Linq
-    // not supported
+    // not supported by marten (see http://jasperfx.github.io/marten/documentation/documents/querying/linq/ for what marten does support)
     // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
     //     f
     //     |> Lambda.ofArity2
