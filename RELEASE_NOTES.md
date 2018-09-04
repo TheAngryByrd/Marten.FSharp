@@ -1,3 +1,7 @@
+#### 0.4.2 - 04.09.2018
+* MINOR: API Documentation (https://github.com/TheAngryByrd/Marten.FSharp/pull/24)
+* BREAKING: Api Changes for Patch and Count (https://github.com/TheAngryByrd/Marten.FSharp/pull/24)
+
 #### 0.4.1 - 23.08.2018
 * BUGFIX: Fix misc api errors (https://github.com/TheAngryByrd/Marten.FSharp/pull/21/files)
 
