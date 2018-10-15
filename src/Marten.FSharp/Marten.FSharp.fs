@@ -23,7 +23,18 @@ module AsyncExtensions =
         open System.Threading.Tasks
 
         /// Applies a mapping function to the result of a successful task
-        let map f (t : Task<_>) = t.ContinueWith(fun (x : Task<_>) -> x.Result |> f)
+        let map f (t : Task<_>) =
+           let tcs = new TaskCompletionSource<'U>()
+           t.ContinueWith(fun (task:Task<_>) ->
+              if task.IsFaulted then
+                   tcs.SetException(task.Exception.InnerExceptions)
+              elif task.IsCanceled then tcs.SetCanceled()
+              else
+                   try
+                       tcs.SetResult(task.Result |> f)
+                   with
+                   | ex -> tcs.SetException(ex)) |> ignore
+           tcs.Task
 
 
 
