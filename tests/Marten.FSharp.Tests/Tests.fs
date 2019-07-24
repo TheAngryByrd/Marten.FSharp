@@ -130,6 +130,8 @@ let withDatabase f () =
 
 open System.Reflection
 open Microsoft.FSharp.Reflection
+open System.Transactions
+open Marten.Services
 let inline withDatabaseAndStore (f : _ -> _)  = async {
     use database =  getNewDatabase ()
     use store = getStore database :> IDocumentStore
@@ -832,6 +834,7 @@ let sqlTests = [
             }
 ]
 
+
 [<Tests>]
 let ``API Tests`` =
     testList "API Tests" [
@@ -845,5 +848,67 @@ let ``API Tests`` =
             yield! PatchTests
             yield! LinQQueryTests
             yield! sqlTests
+        ]
+    ]
+
+
+type Foo = {
+    Id : Guid
+    Name : string
+}
+
+[<Tests>]
+let transactionTests =
+    ftestList "transaction tests" [
+        yield! testFixture' withDatabaseAndStore [
+            testCase' "Sync test" <| fun (db, store : IDocumentStore) ->
+                do
+                    use scope = new TransactionScope()
+                    use saveSession = store.OpenSession(SessionOptions.ForCurrentTransaction())
+                    saveSession.Store { Id = Guid.NewGuid(); Name = "Foo" }
+                    saveSession.SaveChanges()
+
+                    use querySession = store.QuerySession()
+                    let count = querySession.Query<Foo>().Count()
+                    Expect.equal count 0 "Should not have saved yet"
+                    scope.Complete()
+
+
+                use querySession = store.QuerySession()
+                let count = querySession.Query<Foo>().Count()
+                Expect.equal count 1 "Should have saved 1"
+            testCase' "Sync test 2" <| fun (db, store : IDocumentStore) ->
+                let scope = new TransactionScope()
+                use saveSession = store.OpenSession(SessionOptions.ForCurrentTransaction())
+                saveSession.Store { Id = Guid.NewGuid(); Name = "Foo" }
+                saveSession.SaveChanges()
+
+                use querySession = store.QuerySession()
+                let count = querySession.Query<Foo>().Count()
+                Expect.equal count 0 "Should not have saved yet"
+                scope.Complete()
+
+                scope.Dispose()
+                use querySession = store.QuerySession()
+                let count = querySession.Query<Foo>().Count()
+                Expect.equal count 1 "Should have saved 1"
+            testCaseAsync' "Async test" <| fun (db, store : IDocumentStore) -> async {
+                do! async {
+                    use scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled)
+                    use saveSession = store.OpenSession(SessionOptions.ForCurrentTransaction())
+                    saveSession.Store { Id = Guid.NewGuid(); Name = "Foo" }
+                    do! saveSession.SaveChangesAsync() |> Async.AwaitTask
+
+                    use querySession = store.QuerySession()
+                    let! count = querySession.Query<Foo>().CountAsync() |> Async.AwaitTask
+                    Expect.equal count 0 "Should not have saved yet"
+                    scope.Complete()
+                }
+
+
+                use querySession = store.QuerySession()
+                let! count = querySession.Query<Foo>().CountAsync() |> Async.AwaitTask
+                Expect.equal count 1 "Should have saved 1"
+            }
         ]
     ]
