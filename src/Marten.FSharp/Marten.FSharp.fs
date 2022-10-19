@@ -112,7 +112,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -130,7 +130,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -148,7 +148,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -166,7 +166,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -184,7 +184,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -203,7 +203,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -230,7 +230,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/deleting/
+    /// https://martendb.io/documents/deletes.html#deleting-documents
     ///
     /// **Output Type**
     ///   * `unit`
@@ -250,7 +250,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `unit`
@@ -269,7 +269,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `unit`
@@ -288,7 +288,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `unit`
@@ -307,7 +307,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `unit`
@@ -327,7 +327,7 @@ module Session =
     ///   * `session` - parameter of type `IQuerySession`
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `'a option`
@@ -354,7 +354,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -374,7 +374,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -395,7 +395,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -416,7 +416,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -438,7 +438,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -459,7 +459,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -481,7 +481,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -502,7 +502,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -522,7 +522,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Async<'a option>`
@@ -546,7 +546,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Async<'a option>`
@@ -570,7 +570,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Async<'a option>`
@@ -594,7 +594,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Async<'a option>`
@@ -620,7 +620,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -647,7 +647,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Tasks.Task<'a option>`
@@ -669,7 +669,7 @@ module Session =
     ///
     ///
     ///  **Reference**
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/loading/
+    /// https://martendb.io/documents/querying/byid.html#loading-documents-by-id
     ///
     /// **Output Type**
     ///   * `Async<'a option>`
@@ -693,7 +693,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/querying/linq/
+    /// https://martendb.io/documents/querying/linq/
     ///
     /// **Output Type**
     ///   * `Linq.IMartenQueryable<'a>`
@@ -715,7 +715,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/querying/linq/
+    /// https://martendb.io/documents/querying/linq/
     ///
     /// **Output Type**
     ///   * `Collections.Generic.IReadOnlyList<'a>`
@@ -738,7 +738,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/querying/linq/
+    /// https://martendb.io/documents/querying/linq/
     ///
     /// **Output Type**
     ///   * `Tasks.Task<Collections.Generic.IReadOnlyList<'a>>`
@@ -765,7 +765,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/querying/linq/
+    /// https://martendb.io/documents/querying/linq/
     ///
     /// **Output Type**
     ///   * `Tasks.Task<Collections.Generic.IReadOnlyList<'a>>`
@@ -786,7 +786,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/querying/linq/
+    /// https://martendb.io/documents/querying/linq/
     ///
     /// **Output Type**
     ///   * `Async<Collections.Generic.IReadOnlyList<'a>>`
@@ -810,7 +810,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     /// **Output Type**
     ///   * `unit`
@@ -829,7 +829,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     /// **Output Type**
     ///   * `Task.Task`
@@ -848,7 +848,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     /// **Output Type**
     ///   * `Task.Task`
@@ -869,7 +869,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     /// **Output Type**
     ///   * `Async<unit>`
@@ -894,7 +894,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     ///
     /// **Output Type**
@@ -915,7 +915,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/basics/persisting/
+    /// https://martendb.io/documents/storing.html
     ///
     ///
     /// **Output Type**
@@ -937,7 +937,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/advanced/patch_api/
+    /// https://martendb.io/documents/plv8.html#the-patching-api
     ///
     /// **Output Type**
     ///   * `Patching.IPatchExpression<'a>`
@@ -957,7 +957,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/advanced/patch_api/
+    /// https://martendb.io/documents/plv8.html#the-patching-api
     ///
     /// **Output Type**
     ///   * `Patching.IPatchExpression<'a>`
@@ -977,7 +977,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/advanced/patch_api/
+    /// https://martendb.io/documents/plv8.html#the-patching-api
     ///
     /// **Output Type**
     ///   * `Patching.IPatchExpression<'a>`
@@ -997,7 +997,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/advanced/patch_api/
+    /// https://martendb.io/documents/plv8.html#the-patching-api
     ///
     /// **Output Type**
     ///   * `Patching.IPatchExpression<'a>`
@@ -1018,7 +1018,7 @@ module Session =
     ///
     /// **Reference**
     ///
-    /// https://jasperfx.github.io/marten/documentation/documents/advanced/patch_api/
+    /// https://martendb.io/documents/plv8.html#the-patching-api
     ///
     /// **Output Type**
     ///   * `Patching.IPatchExpression<'a>`
@@ -1110,7 +1110,7 @@ module Session =
 module Queryable =
     open System.Linq
     // open Marten.Linq
-    // not supported by marten (see http://jasperfx.github.io/marten/documentation/documents/querying/linq/ for what marten does support)
+    // not supported by marten (see https://martendb.io/documents/querying/linq/ for what marten does support)
     // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
     //     f
     //     |> Lambda.ofArity2
