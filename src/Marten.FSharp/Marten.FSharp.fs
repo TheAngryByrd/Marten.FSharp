@@ -1,6 +1,9 @@
 namespace Marten
 
 open System
+open Marten
+open Marten.PLv8
+open Marten.PLv8.Patching
 
 /// Useful functions for combining error handling computations with async computations.
 [<AutoOpen>]
@@ -23,18 +26,22 @@ module AsyncExtensions =
         open System.Threading.Tasks
 
         /// Applies a mapping function to the result of a successful task
-        let map f (t : Task<_>) =
-           let tcs = new TaskCompletionSource<'U>()
-           t.ContinueWith(fun (task:Task<_>) ->
-              if task.IsFaulted then
-                   tcs.SetException(task.Exception.InnerExceptions)
-              elif task.IsCanceled then tcs.SetCanceled()
-              else
-                   try
-                       tcs.SetResult(task.Result |> f)
-                   with
-                   | ex -> tcs.SetException(ex)) |> ignore
-           tcs.Task
+        let map f (t: Task<_>) =
+            let tcs = new TaskCompletionSource<'U>()
+
+            t.ContinueWith(fun (task: Task<_>) ->
+                if task.IsFaulted then
+                    tcs.SetException(task.Exception.InnerExceptions)
+                elif task.IsCanceled then
+                    tcs.SetCanceled()
+                else
+                    try
+                        tcs.SetResult(task.Result |> f)
+                    with ex ->
+                        tcs.SetException(ex))
+            |> ignore
+
+            tcs.Task
 
 
 
@@ -51,8 +58,7 @@ module Option =
     /// **Exceptions**
     ///
     let ofNullableRecord record =
-        if (record |> box |> isNull) then None
-        else Some record
+        if (record |> box |> isNull) then None else Some record
 
 
 open System
@@ -63,7 +69,8 @@ module private Lambda =
     open Microsoft.FSharp.Quotations
 
     open Microsoft.FSharp.Linq.RuntimeHelpers.LeafExpressionConverter
-    let rec translateExpr (linq:Expression) =
+
+    let rec translateExpr (linq: Expression) =
         match linq with
         | :? MethodCallExpression as mc ->
             match mc.Arguments.[0] with
@@ -80,15 +87,15 @@ module private Lambda =
         | _ -> [], linq
 
     let inline toLinq<'a> expr =
-        let args, body = expr |> QuotationToExpression  |> translateExpr
+        let args, body = expr |> QuotationToExpression |> translateExpr
         Expression.Lambda<'a>(body, args |> Array.ofList)
-    let inline ofArity1 (expr : Expr<'a -> 'b>) =
-        toLinq<Func<'a,'b>> expr
-    let inline ofArity2 (expr : Expr<'a -> 'b -> 'c>) =
-        toLinq<Func<'a,'b,'c>> expr
+
+    let inline ofArity1 (expr: Expr<'a -> 'b>) = toLinq<Func<'a, 'b>> expr
+    let inline ofArity2 (expr: Expr<'a -> 'b -> 'c>) = toLinq<Func<'a, 'b, 'c>> expr
 
 
 module Session =
+
     type PrimaryKey =
         | Guid of Guid
         | String of string
@@ -112,8 +119,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteEntity (entity : 'a) (session : IDocumentSession) =
-        session.Delete(entity)
+    let deleteEntity (entity: 'a) (session: IDocumentSession) = session.Delete(entity)
 
     /// **Description**
     /// Deletes an entity by given Guid identifier
@@ -131,8 +137,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteByGuid<'a> (id : Guid) (session : IDocumentSession) =
-        session.Delete<'a>(id)
+    let deleteByGuid<'a> (id: Guid) (session: IDocumentSession) = session.Delete<'a>(id)
 
     /// **Description**
     /// Deletes an entity by given string identifier
@@ -150,8 +155,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteByString<'a> (id : string) (session : IDocumentSession) =
-        session.Delete<'a>(id)
+    let deleteByString<'a> (id: string) (session: IDocumentSession) = session.Delete<'a>(id)
 
     /// **Description**
     /// Deletes an entity by given int identifier
@@ -169,8 +173,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteByInt<'a> (id : int) (session : IDocumentSession) =
-        session.Delete<'a>(id)
+    let deleteByInt<'a> (id: int) (session: IDocumentSession) = session.Delete<'a>(id)
 
     /// **Description**
     /// Deletes an entity by given int64 identifier
@@ -188,8 +191,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteByInt64<'a> (id : int64) (session : IDocumentSession) =
-        session.Delete<'a>(id)
+    let deleteByInt64<'a> (id: int64) (session: IDocumentSession) = session.Delete<'a>(id)
 
 
     /// **Description**
@@ -208,7 +210,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let delete<'a> (primaryKey : PrimaryKey) (session : IDocumentSession) =
+    let delete<'a> (primaryKey: PrimaryKey) (session: IDocumentSession) =
         session
         |> match primaryKey with
            | Guid g -> deleteByGuid<'a> g
@@ -235,10 +237,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let deleteBy<'a> (predicate : Quotations.Expr<'a -> bool>) (session : IDocumentSession) =
-        predicate
-        |> Lambda.ofArity1
-        |> session.DeleteWhere
+    let deleteBy<'a> (predicate: Quotations.Expr<'a -> bool>) (session: IDocumentSession) =
+        predicate |> Lambda.ofArity1 |> session.DeleteWhere
 
 
     /// **Description**
@@ -257,9 +257,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByGuid<'a> (id : Guid) (session : IQuerySession) =
-        session.Load<'a>(id)
-        |> Option.ofNullableRecord
+    let loadByGuid<'a> (id: Guid) (session: IQuerySession) =
+        session.Load<'a>(id) |> Option.ofNullableRecord
 
     /// **Description**
     /// Loads an entity by given int identifier
@@ -277,9 +276,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByInt<'a> (id : int) (session : IQuerySession) =
-        session.Load<'a>(id)
-        |> Option.ofNullableRecord
+    let loadByInt<'a> (id: int) (session: IQuerySession) =
+        session.Load<'a>(id) |> Option.ofNullableRecord
 
     /// **Description**
     /// Loads an entity by given int64 identifier
@@ -297,9 +295,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByInt64<'a> (id : int64) (session : IQuerySession) =
-        session.Load<'a>(id)
-        |> Option.ofNullableRecord
+    let loadByInt64<'a> (id: int64) (session: IQuerySession) =
+        session.Load<'a>(id) |> Option.ofNullableRecord
 
     /// **Description**
     /// Loads an entity by given string identifier
@@ -317,9 +314,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByString<'a> (id : string) (session : IQuerySession) =
-        session.Load<'a>(id)
-        |> Option.ofNullableRecord
+    let loadByString<'a> (id: string) (session: IQuerySession) =
+        session.Load<'a>(id) |> Option.ofNullableRecord
 
 
 
@@ -338,7 +334,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let load<'a> (primaryKey : PrimaryKey) (session : IQuerySession) =
+    let load<'a> (primaryKey: PrimaryKey) (session: IQuerySession) =
         session
         |> match primaryKey with
            | Guid g -> loadByGuid<'a> g
@@ -365,9 +361,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByGuidTaskCt<'a> (cancellationToken : CancellationToken) (id : Guid) (session : IQuerySession) =
-        session.LoadAsync<'a>(id,cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let loadByGuidTaskCt<'a> (cancellationToken: CancellationToken) (id: Guid) (session: IQuerySession) =
+        session.LoadAsync<'a>(id, cancellationToken) |> Task.map Option.ofNullableRecord
 
     /// **Description**
     ///
@@ -386,7 +381,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByGuidTask<'a> (id : Guid) (session : IQuerySession) =
+    let loadByGuidTask<'a> (id: Guid) (session: IQuerySession) =
         loadByGuidTaskCt<'a> CancellationToken.None id session
 
     /// **Description**
@@ -407,9 +402,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByIntTaskCt<'a> (cancellationToken : CancellationToken) (id : int32) (session : IQuerySession) =
-        session.LoadAsync<'a>(id,cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let loadByIntTaskCt<'a> (cancellationToken: CancellationToken) (id: int32) (session: IQuerySession) =
+        session.LoadAsync<'a>(id, cancellationToken) |> Task.map Option.ofNullableRecord
 
 
     /// **Description**
@@ -429,7 +423,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByIntTask<'a> (id : int32) (session : IQuerySession) =
+    let loadByIntTask<'a> (id: int32) (session: IQuerySession) =
         loadByIntTaskCt<'a> CancellationToken.None id session
 
 
@@ -451,9 +445,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByInt64TaskCt<'a> (cancellationToken : CancellationToken) (id : int64) (session : IQuerySession) =
-        session.LoadAsync<'a>(id,cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let loadByInt64TaskCt<'a> (cancellationToken: CancellationToken) (id: int64) (session: IQuerySession) =
+        session.LoadAsync<'a>(id, cancellationToken) |> Task.map Option.ofNullableRecord
 
 
     /// **Description**
@@ -473,7 +466,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByInt64Task<'a> (id : int64) (session : IQuerySession) =
+    let loadByInt64Task<'a> (id: int64) (session: IQuerySession) =
         loadByInt64TaskCt<'a> CancellationToken.None id session
 
 
@@ -495,9 +488,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByStringTaskCt<'a> (cancellationToken : CancellationToken) (id : string) (session : IQuerySession) =
-        session.LoadAsync<'a>(id,cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let loadByStringTaskCt<'a> (cancellationToken: CancellationToken) (id: string) (session: IQuerySession) =
+        session.LoadAsync<'a>(id, cancellationToken) |> Task.map Option.ofNullableRecord
 
 
     /// **Description**
@@ -517,10 +509,10 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let loadByStringTask<'a> (id : string) (session : IQuerySession) =
+    let loadByStringTask<'a> (id: string) (session: IQuerySession) =
         loadByStringTaskCt<'a> CancellationToken.None id session
 
-/// **Description**
+    /// **Description**
     ///
     /// Loads an entity asynchrnously by given Guid identifier
     ///
@@ -538,13 +530,11 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadByGuidAsync<'a> (id : Guid) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> loadByGuidTaskCt<'a> ct id
-            |> Async.AwaitTask
-    }
+    let loadByGuidAsync<'a> (id: Guid) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> loadByGuidTaskCt<'a> ct id |> Async.AwaitTask
+        }
 
     /// **Description**
     ///
@@ -564,13 +554,11 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadByIntAsync<'a> (id : int32) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> loadByIntTaskCt<'a> ct id
-            |> Async.AwaitTask
-    }
+    let loadByIntAsync<'a> (id: int32) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> loadByIntTaskCt<'a> ct id |> Async.AwaitTask
+        }
 
     /// **Description**
     ///
@@ -590,13 +578,11 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadByInt64Async<'a> (id : int64) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> loadByInt64TaskCt<'a> ct id
-            |> Async.AwaitTask
-    }
+    let loadByInt64Async<'a> (id: int64) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> loadByInt64TaskCt<'a> ct id |> Async.AwaitTask
+        }
 
     /// **Description**
     ///
@@ -616,13 +602,11 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadByStringAsync<'a> (id : string) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> loadByStringTaskCt<'a> ct id
-            |> Async.AwaitTask
-    }
+    let loadByStringAsync<'a> (id: string) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> loadByStringTaskCt<'a> ct id |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -644,13 +628,13 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadTaskCt<'a> (cancellationToken : CancellationToken) (primaryKey : PrimaryKey) (session : IQuerySession) =
+    let loadTaskCt<'a> (cancellationToken: CancellationToken) (primaryKey: PrimaryKey) (session: IQuerySession) =
         session
-        |>  match primaryKey with
-            | Guid g -> loadByGuidTaskCt<'a> cancellationToken g
-            | String s -> loadByStringTaskCt<'a> cancellationToken s
-            | Int i -> loadByIntTaskCt<'a> cancellationToken i
-            | Int64 i -> loadByInt64TaskCt<'a> cancellationToken i
+        |> match primaryKey with
+           | Guid g -> loadByGuidTaskCt<'a> cancellationToken g
+           | String s -> loadByStringTaskCt<'a> cancellationToken s
+           | Int i -> loadByIntTaskCt<'a> cancellationToken i
+           | Int64 i -> loadByInt64TaskCt<'a> cancellationToken i
 
 
     /// **Description**
@@ -671,7 +655,7 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadTask<'a> (primaryKey : PrimaryKey) (session : IQuerySession) =
+    let loadTask<'a> (primaryKey: PrimaryKey) (session: IQuerySession) =
         loadTaskCt CancellationToken.None primaryKey session
 
 
@@ -693,13 +677,11 @@ module Session =
     /// **Exceptions**
     ///
     ///
-    let loadAsync<'a> (pk : PrimaryKey) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> loadTaskCt<'a> ct pk
-            |> Async.AwaitTask
-    }
+    let loadAsync<'a> (pk: PrimaryKey) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> loadTaskCt<'a> ct pk |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -718,8 +700,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let query<'a> (session : IQuerySession) =
-        session.Query<'a>()
+    let query<'a> (session: IQuerySession) = session.Query<'a>()
 
 
 
@@ -741,7 +722,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let sql<'a> (sqlString : string) (parameters : obj array) (session : IQuerySession)  =
+    let sql<'a> (sqlString: string) (parameters: obj array) (session: IQuerySession) =
         session.Query<'a>(sqlString, parameters)
 
 
@@ -764,8 +745,13 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let sqlTaskCt<'a> (cancellationToken : CancellationToken) (sqlString : string) (parameters : obj [])  (session : IQuerySession)=
-        session.QueryAsync<'a>(sqlString, cancellationToken, parameters=parameters)
+    let sqlTaskCt<'a>
+        (cancellationToken: CancellationToken)
+        (sqlString: string)
+        (parameters: obj[])
+        (session: IQuerySession)
+        =
+        session.QueryAsync<'a>(sqlString, cancellationToken, parameters = parameters)
 
 
     /// **Description**
@@ -786,7 +772,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let sqlTask<'a> (sqlString : string) (parameters : obj [])  (session : IQuerySession)=
+    let sqlTask<'a> (sqlString: string) (parameters: obj[]) (session: IQuerySession) =
         sqlTaskCt<'a> CancellationToken.None sqlString parameters session
 
     /// **Description**
@@ -807,13 +793,11 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let sqlAsync<'a> (sqlString : string) (parameters : obj []) (session : IQuerySession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> sqlTaskCt<'a> ct sqlString parameters
-            |> Async.AwaitTask
-    }
+    let sqlAsync<'a> (sqlString: string) (parameters: obj[]) (session: IQuerySession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> sqlTaskCt<'a> ct sqlString parameters |> Async.AwaitTask
+        }
 
 
 
@@ -833,8 +817,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let saveChanges (session : IDocumentSession) =
-        session.SaveChanges()
+    let saveChanges (session: IDocumentSession) = session.SaveChanges()
 
     /// **Description**
     /// Saves changes to a unit of work asynchronously.
@@ -853,7 +836,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let saveChangesTaskCt (cancellationToken : CancellationToken) (session : IDocumentSession) =
+    let saveChangesTaskCt (cancellationToken: CancellationToken) (session: IDocumentSession) =
         session.SaveChangesAsync(cancellationToken)
 
     /// **Description**
@@ -872,7 +855,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let saveChangesTask (session : IDocumentSession) =
+    let saveChangesTask (session: IDocumentSession) =
         saveChangesTaskCt CancellationToken.None session
 
 
@@ -893,13 +876,11 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let saveChangesAsync (session : IDocumentSession) = async {
-        let! ct = Async.CancellationToken
-        return!
-            session
-            |> saveChangesTaskCt ct
-            |> Async.AwaitTask
-    }
+    let saveChangesAsync (session: IDocumentSession) =
+        async {
+            let! ct = Async.CancellationToken
+            return! session |> saveChangesTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -921,8 +902,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let storeSingle (entity : 'a) (session : IDocumentSession) =
-        session.Store([|entity|])
+    let storeSingle (entity: 'a) (session: IDocumentSession) = session.Store([| entity |])
 
     /// **Description**
     ///
@@ -943,10 +923,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let storeMany (entities : #seq<'a>) (session : IDocumentSession) =
-        entities
-        |> Seq.toArray
-        |> session.Store
+    let storeMany (entities: #seq<'a>) (session: IDocumentSession) =
+        entities |> Seq.toArray |> session.Store
 
     /// **Description**
     ///
@@ -966,8 +944,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patchByGuid<'a> (id : Guid) (session : IDocumentSession) =
-        session.Patch<'a>(id)
+    let patchByGuid<'a> (id: Guid) (session: IDocumentSession) = session.Patch<'a>(id)
 
     /// **Description**
     ///
@@ -987,8 +964,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patchByString<'a> (id : string) (session : IDocumentSession) =
-        session.Patch<'a>(id)
+    let patchByString<'a> (id: string) (session: IDocumentSession) = session.Patch<'a>(id)
 
     /// **Description**
     ///
@@ -1008,8 +984,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patchByInt<'a> (id : int) (session : IDocumentSession) =
-        session.Patch<'a>(id)
+    let patchByInt<'a> (id: int) (session: IDocumentSession) = session.Patch<'a>(id)
 
     /// **Description**
     ///
@@ -1029,8 +1004,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patchByInt64<'a> (id : int64) (session : IDocumentSession) =
-        session.Patch<'a>(id)
+    let patchByInt64<'a> (id: int64) (session: IDocumentSession) = session.Patch<'a>(id)
 
 
     /// **Description**
@@ -1051,7 +1025,7 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patch (primaryKey : PrimaryKey)  (session : IDocumentSession) =
+    let patch (primaryKey: PrimaryKey) (session: IDocumentSession) =
         session
         |> match primaryKey with
            | Guid g -> patchByGuid g
@@ -1073,10 +1047,8 @@ module Session =
     ///
     /// **Exceptions**
     ///
-    let patchWhere (predicate : Quotations.Expr<'a -> bool>) (session : IDocumentSession) =
-        predicate
-        |> Lambda.ofArity1
-        |> session.Patch
+    let patchWhere (predicate: Quotations.Expr<'a -> bool>) (session: IDocumentSession) =
+        predicate |> Lambda.ofArity1 |> session.Patch
 
     module Patch =
 
@@ -1094,7 +1066,7 @@ module Session =
         ///
         /// **Exceptions**
         ///
-        let set<'a, 'b> (keySelector : Quotations.Expr<'a -> 'b>) (newVal : 'b) (pExpr : Patching.IPatchExpression<'a>) =
+        let set<'a, 'b> (keySelector: Quotations.Expr<'a -> 'b>) (newVal: 'b) (pExpr: Patching.IPatchExpression<'a>) =
             let func = Lambda.ofArity1 keySelector
             pExpr.Set<'b>(func, newVal)
 
@@ -1111,7 +1083,7 @@ module Session =
         ///
         /// **Exceptions**
         ///
-        let inc<'a> (keySelector : Quotations.Expr<'a -> int>) (pExpr : Patching.IPatchExpression<'a>) =
+        let inc<'a> (keySelector: Quotations.Expr<'a -> int>) (pExpr: Patching.IPatchExpression<'a>) =
             let func = Lambda.ofArity1 keySelector
             pExpr.Increment(func, 1)
 
@@ -1131,13 +1103,13 @@ module Session =
         ///
         /// **Exceptions**
         ///
-        let incPlural<'a> (keySelector : Quotations.Expr<'a -> int>) (inc : int) (pExpr : Patching.IPatchExpression<'a>) =
+        let incPlural<'a> (keySelector: Quotations.Expr<'a -> int>) (inc: int) (pExpr: Patching.IPatchExpression<'a>) =
             let func = Lambda.ofArity1 keySelector
             pExpr.Increment(func, inc)
 
 module Queryable =
     open System.Linq
-    open Marten.Linq
+    // open Marten.Linq
     // not supported by marten (see http://jasperfx.github.io/marten/documentation/documents/querying/linq/ for what marten does support)
     // let aggregate (f : Quotations.Expr<'a -> 'a -> 'a>) (q : IQueryable<'a>) =
     //     f
@@ -1164,8 +1136,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let exactlyOne (q : IQueryable<'a>) =
-        q.Single()
+    let exactlyOne (q: IQueryable<'a>) = q.Single()
 
 
     /// **Description**
@@ -1182,8 +1153,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let exactlyOneTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
-        q.SingleAsync(cancellationToken)
+    let exactlyOneTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) = q.SingleAsync(cancellationToken)
 
     /// **Description**
     ///
@@ -1198,7 +1168,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let exactlyOneTask (q : IQueryable<'a>) =
+    let exactlyOneTask (q: IQueryable<'a>) =
         exactlyOneTaskCt CancellationToken.None q
 
 
@@ -1215,13 +1185,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let exactlyOneAsync (q : IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> exactlyOneTaskCt ct
-            |> Async.AwaitTask
-    }
+    let exactlyOneAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> exactlyOneTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1237,10 +1205,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let filter (predicate : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
-        predicate
-        |> Lambda.ofArity1
-        |> q.Where
+    let filter (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) = predicate |> Lambda.ofArity1 |> q.Where
 
 
     /// **Description**
@@ -1256,8 +1221,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let head (q : IQueryable<'a>) =
-        q.First()
+    let head (q: IQueryable<'a>) = q.First()
 
 
     /// **Description**
@@ -1274,8 +1238,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let headTaskCt (cancellationToken : CancellationToken)  (q : IQueryable<'a>) =
-        q.FirstAsync(cancellationToken)
+    let headTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) = q.FirstAsync(cancellationToken)
 
 
     /// **Description**
@@ -1291,8 +1254,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let headTask (q : IQueryable<'a>) =
-        headTaskCt CancellationToken.None q
+    let headTask (q: IQueryable<'a>) = headTaskCt CancellationToken.None q
 
 
     /// **Description**
@@ -1308,13 +1270,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let headAsync (q : IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> headTaskCt ct
-            |> Async.AwaitTask
-    }
+    let headAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> headTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1331,10 +1291,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let map (mapper : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        mapper
-        |> Lambda.ofArity1
-        |> q.Select
+    let map (mapper: Quotations.Expr<'a -> 'b>) (q: IQueryable<'a>) = mapper |> Lambda.ofArity1 |> q.Select
 
 
     /// **Description**
@@ -1350,8 +1307,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let toList (q : IQueryable<'a>) =
-        q.ToList()
+    let toList (q: IQueryable<'a>) = q.ToList()
 
 
     /// **Description**
@@ -1368,8 +1324,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let toListTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
-        q.ToListAsync(cancellationToken)
+    let toListTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) = q.ToListAsync(cancellationToken)
 
     /// **Description**
     ///
@@ -1384,8 +1339,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let toListTask (q : IQueryable<'a>) =
-        toListTaskCt CancellationToken.None q
+    let toListTask (q: IQueryable<'a>) = toListTaskCt CancellationToken.None q
 
 
     /// **Description**
@@ -1401,13 +1355,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let toListAsync (q : IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> toListTaskCt ct
-            |> Async.AwaitTask
-    }
+    let toListAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> toListTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1423,9 +1375,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let tryExactlyOne (q : IQueryable<'a>) =
-        q.SingleOrDefault()
-        |> Option.ofNullableRecord
+    let tryExactlyOne (q: IQueryable<'a>) =
+        q.SingleOrDefault() |> Option.ofNullableRecord
 
 
     /// **Description**
@@ -1442,9 +1393,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let tryExactlyOneTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
-        q.SingleOrDefaultAsync(cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let tryExactlyOneTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) =
+        q.SingleOrDefaultAsync(cancellationToken) |> Task.map Option.ofNullableRecord
 
 
     /// **Description**
@@ -1460,7 +1410,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
-    let tryExactlyOneTask (q : IQueryable<'a>) =
+    let tryExactlyOneTask (q: IQueryable<'a>) =
         tryExactlyOneTaskCt CancellationToken.None q
 
 
@@ -1478,13 +1428,11 @@ module Queryable =
     /// **Exceptions**
     ///   * `System.InvalidOperationException`: source has more than one element
     ///
-    let tryExactlyOneAsync (q : IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> tryExactlyOneTaskCt ct
-            |> Async.AwaitTask
-    }
+    let tryExactlyOneAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> tryExactlyOneTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1500,9 +1448,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let tryHead (q : IQueryable<'a>) =
-        q.FirstOrDefault()
-        |> Option.ofNullableRecord
+    let tryHead (q: IQueryable<'a>) =
+        q.FirstOrDefault() |> Option.ofNullableRecord
 
 
     /// **Description**
@@ -1519,9 +1466,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let tryHeadTaskCt (cancellationToken : CancellationToken) (q : IQueryable<'a>) =
-        q.FirstOrDefaultAsync(cancellationToken)
-        |> Task.map Option.ofNullableRecord
+    let tryHeadTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) =
+        q.FirstOrDefaultAsync(cancellationToken) |> Task.map Option.ofNullableRecord
 
 
     /// **Description**
@@ -1537,8 +1483,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let tryHeadTask (q : IQueryable<'a>) =
-        tryHeadTaskCt CancellationToken.None q
+    let tryHeadTask (q: IQueryable<'a>) = tryHeadTaskCt CancellationToken.None q
 
 
     /// **Description**
@@ -1554,13 +1499,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let tryHeadAsync (q : IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> tryHeadTaskCt ct
-            |> Async.AwaitTask
-    }
+    let tryHeadAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> tryHeadTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1577,10 +1520,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countWhere<'a> (predicate : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
-        predicate
-        |> Lambda.ofArity1
-        |> q.Count
+    let countWhere<'a> (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+        predicate |> Lambda.ofArity1 |> q.Count
 
 
     /// **Description**
@@ -1596,8 +1537,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let count (q : IQueryable<'a>) =
-        q.Count()
+    let count (q: IQueryable<'a>) = q.Count()
 
 
 
@@ -1615,10 +1555,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countLongWhere  (predicate : Quotations.Expr<'a -> bool>) (q : IQueryable<'a>) =
-        predicate
-        |> Lambda.ofArity1
-        |> q.LongCount
+    let countLongWhere (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+        predicate |> Lambda.ofArity1 |> q.LongCount
 
     /// **Description**
     ///
@@ -1633,8 +1571,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countLong (q : IQueryable<'a>) =
-        q.LongCount()
+    let countLong (q: IQueryable<'a>) = q.LongCount()
 
     /// **Description**
     ///
@@ -1650,7 +1587,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countTaskCt (cancellationToken : CancellationToken) (q: IQueryable<'a>) = q.CountAsync(cancellationToken)
+    let countTaskCt (cancellationToken: CancellationToken) (q: IQueryable<'a>) = q.CountAsync(cancellationToken)
 
     /// **Description**
     ///
@@ -1665,7 +1602,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countTask (q: IQueryable<'a>)  = countTaskCt CancellationToken.None q
+    let countTask (q: IQueryable<'a>) = countTaskCt CancellationToken.None q
 
     /// **Description**
     ///
@@ -1680,13 +1617,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countAsync (q: IQueryable<'a>)  = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> countTaskCt ct
-            |> Async.AwaitTask
-    }
+    let countAsync (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> countTaskCt ct |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1704,7 +1639,12 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countWhereTaskCt (cancellationToken : CancellationToken) (predicate : Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) = q.CountAsync(Lambda.ofArity1 predicate, cancellationToken)
+    let countWhereTaskCt
+        (cancellationToken: CancellationToken)
+        (predicate: Quotations.Expr<'a -> bool>)
+        (q: IQueryable<'a>)
+        =
+        q.CountAsync(Lambda.ofArity1 predicate, cancellationToken)
 
     /// **Description**
     ///
@@ -1720,7 +1660,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countWhereTask  (predicate : Quotations.Expr<'a -> bool>)  (q: IQueryable<'a>) = countWhereTaskCt CancellationToken.None predicate q
+    let countWhereTask (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+        countWhereTaskCt CancellationToken.None predicate q
 
     /// **Description**
     ///
@@ -1736,13 +1677,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countWhereAsync (predicate : Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return!
-            q
-            |> countWhereTaskCt ct predicate
-            |> Async.AwaitTask
-    }
+    let countWhereAsync (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! q |> countWhereTaskCt ct predicate |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1760,7 +1699,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countLongWhereTaskCt (cancellationToken : CancellationToken) (predicate : Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+    let countLongWhereTaskCt
+        (cancellationToken: CancellationToken)
+        (predicate: Quotations.Expr<'a -> bool>)
+        (q: IQueryable<'a>)
+        =
         q.LongCountAsync(Lambda.ofArity1 predicate, cancellationToken)
 
 
@@ -1778,7 +1721,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countLongWhereTask (predicate : Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+    let countLongWhereTask (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
         countLongWhereTaskCt CancellationToken.None predicate q
 
 
@@ -1796,10 +1739,11 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let countLongWhereAsync (predicate : Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) = async {
-        let! ct = Async.CancellationToken
-        return! countLongWhereTaskCt ct predicate q |> Async.AwaitTask
-    }
+    let countLongWhereAsync (predicate: Quotations.Expr<'a -> bool>) (q: IQueryable<'a>) =
+        async {
+            let! ct = Async.CancellationToken
+            return! countLongWhereTaskCt ct predicate q |> Async.AwaitTask
+        }
 
 
     /// **Description**
@@ -1816,10 +1760,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let min<'a, 'b when 'b : comparison> (predicate : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        predicate
-        |> Lambda.ofArity1
-        |> q.Min
+    let min<'a, 'b when 'b: comparison> (predicate: Quotations.Expr<'a -> 'b>) (q: IQueryable<'a>) =
+        predicate |> Lambda.ofArity1 |> q.Min
 
 
     /// **Description**
@@ -1836,10 +1778,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let max<'a, 'b when 'b : comparison> (predicate : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        predicate
-        |> Lambda.ofArity1
-        |> q.Max
+    let max<'a, 'b when 'b: comparison> (predicate: Quotations.Expr<'a -> 'b>) (q: IQueryable<'a>) =
+        predicate |> Lambda.ofArity1 |> q.Max
 
 
     /// **Description**
@@ -1856,10 +1796,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let orderBy<'a, 'b when 'b : comparison> (keySelector : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        keySelector
-        |> Lambda.ofArity1
-        |> q.OrderBy
+    let orderBy<'a, 'b when 'b: comparison> (keySelector: Quotations.Expr<'a -> 'b>) (q: IQueryable<'a>) =
+        keySelector |> Lambda.ofArity1 |> q.OrderBy
 
 
     /// **Description**
@@ -1876,10 +1814,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let orderByDescending<'a, 'b when 'b : comparison> (keySelector : Quotations.Expr<'a -> 'b>) (q : IQueryable<'a>) =
-        keySelector
-        |> Lambda.ofArity1
-        |> q.OrderByDescending
+    let orderByDescending<'a, 'b when 'b: comparison> (keySelector: Quotations.Expr<'a -> 'b>) (q: IQueryable<'a>) =
+        keySelector |> Lambda.ofArity1 |> q.OrderByDescending
 
 
     /// **Description**
@@ -1896,10 +1832,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let thenBy (keySelector : Quotations.Expr<'a -> 'b>) (oq : IOrderedQueryable<'a>) =
-        keySelector
-        |> Lambda.ofArity1
-        |> oq.ThenBy
+    let thenBy (keySelector: Quotations.Expr<'a -> 'b>) (oq: IOrderedQueryable<'a>) =
+        keySelector |> Lambda.ofArity1 |> oq.ThenBy
 
 
     /// **Description**
@@ -1916,10 +1850,8 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let thenByDescending (keySelector : Quotations.Expr<'a -> 'b>) (oq : IOrderedQueryable<'a>) =
-        keySelector
-        |> Lambda.ofArity1
-        |> oq.ThenByDescending
+    let thenByDescending (keySelector: Quotations.Expr<'a -> 'b>) (oq: IOrderedQueryable<'a>) =
+        keySelector |> Lambda.ofArity1 |> oq.ThenByDescending
 
 
     /// **Description**
@@ -1936,8 +1868,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let skip (amount : int) (q : IQueryable<'a>) =
-        q.Skip(amount)
+    let skip (amount: int) (q: IQueryable<'a>) = q.Skip(amount)
 
     /// **Description**
     ///
@@ -1953,8 +1884,7 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let take (amount : int) (q : IQueryable<'a>) =
-        q.Take(amount)
+    let take (amount: int) (q: IQueryable<'a>) = q.Take(amount)
 
 
 
@@ -1973,7 +1903,4 @@ module Queryable =
     ///
     /// **Exceptions**
     ///
-    let paging (skipped : int) (takeAmount : int) (q : IQueryable<'a>) =
-        q
-        |> skip skipped
-        |> take takeAmount
+    let paging (skipped: int) (takeAmount: int) (q: IQueryable<'a>) = q |> skip skipped |> take takeAmount
