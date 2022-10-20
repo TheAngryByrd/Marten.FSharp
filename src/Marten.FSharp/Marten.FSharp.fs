@@ -1904,3 +1904,73 @@ module Queryable =
     /// **Exceptions**
     ///
     let paging (skipped: int) (takeAmount: int) (q: IQueryable<'a>) = q |> skip skipped |> take takeAmount
+
+    /// **Description**
+    ///
+    /// Fetches a single related document.else
+    ///
+    /// **Parameters**
+    ///   * `selector` - foreign key selector
+    ///   * `action` - related document callback
+    ///   * `q` - your `IQueryable` parameter
+    ///
+    /// **Output Type**
+    ///   * `IQueryable<'a>`
+    ///
+    ///  **Reference**
+    /// https://martendb.io/documents/querying/linq/include.html#join-a-single-document
+    ///
+    /// **Exceptions**
+    ///
+    let includeSingle<'a, 'b> (selector: Quotations.Expr<'a -> obj>) (action: 'b -> unit) (q: IQueryable<'a>) =
+        q.Include(selector |> Lambda.ofArity1, action)
+
+    /// **Description**
+    ///
+    /// Fetches a collection of related documents.
+    /// Appends the documents to your specified `IList<'b>` parameter
+    ///
+    /// **Parameters**
+    ///   * `selector` - foreign key selector
+    ///   * `list` - the list the related documents will be appended to.
+    ///   * `q` - your `IQueryable` parameter
+    ///
+    /// **Output Type**
+    ///   * `IQueryable<'a>`
+    ///
+    ///  **Reference**
+    /// https://martendb.io/documents/querying/linq/include.html#join-many-documents
+    ///
+    /// **Exceptions**
+    ///
+    let includeList<'a, 'b>
+        (selector: Quotations.Expr<'a -> obj>)
+        (list: Collections.Generic.IList<'b>)
+        (q: IQueryable<'a>)
+        =
+        q.Include(selector |> Lambda.ofArity1, list)
+
+    /// **Description**
+    ///
+    /// Fetches a collection of related documents.
+    /// Appends the document's primary key and data to the dictionary.
+    ///
+    /// **Parameters**
+    ///   * `selector` - foreign key selector
+    ///   * `dict` - the dictionary the related documents will be appended to.
+    ///   * `q` - your `IQueryable` parameter
+    ///
+    /// **Output Type**
+    ///   * `IQueryable<'a>`
+    ///
+    ///  **Reference**
+    /// https://martendb.io/documents/querying/linq/include.html#join-many-documents
+    ///
+    /// **Exceptions**
+    ///
+    let includeDict<'a, 'b, 'c>
+        (selector: Quotations.Expr<'a -> obj>)
+        (dict: Collections.Generic.Dictionary<'b, 'c>)
+        (q: IQueryable<'a>)
+        =
+        q.Include(selector |> Lambda.ofArity1, dict)
