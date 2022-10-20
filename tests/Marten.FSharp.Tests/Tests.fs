@@ -2,6 +2,10 @@ module Tests
 
 
 open Expecto
+open DotNet.Testcontainers
+open DotNet.Testcontainers.Builders
+open DotNet.Testcontainers.Containers
+open DotNet.Testcontainers.Configurations
 
 module Expecto =
     module Expect =
@@ -47,9 +51,10 @@ type Book =
       AuthorId: int
       Title: string }
 
-module DatabaseTestHelpers =
-    open Weasel.Postgresql
+[<CLIMutableAttribute>]
+type Person = { Id: Guid; Name: string; Age: int }
 
+module DatabaseTestHelpers =
     let execNonQuery connStr commandStr =
         use conn = new NpgsqlConnection(connStr)
         use cmd = new NpgsqlCommand(commandStr, conn)
@@ -62,75 +67,31 @@ module DatabaseTestHelpers =
         |> execNonQuery connStr
         |> ignore
 
-    let dropDatabase connStr databaseName =
-        //kill out all connections
-        databaseName
-        |> sprintf "select pg_terminate_backend(pid) from pg_stat_activity where datname='%s';"
-        |> execNonQuery connStr
-        |> ignore
+type DisposableDatabase() =
+    let container =
+        TestcontainersBuilder<PostgreSqlTestcontainer>()
+            .WithDatabase(
+                new PostgreSqlTestcontainerConfiguration(
+                    Database = "db",
+                    Username = "postgres",
+                    Password = "postgres",
+                    Port = 5432
+                )
+            )
+            .WithExposedPort(5432)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5432))
+            .Build()
 
-        databaseName |> sprintf "DROP database \"%s\"" |> execNonQuery connStr |> ignore
-
-    let createConnString host user pass database =
-        sprintf "Host=%s;Username=%s;Password=%s;Database=%s" host user pass database
-        |> NpgsqlConnectionStringBuilder
-
-
-    type DisposableDatabase(superConn: NpgsqlConnectionStringBuilder, databaseName: string) =
-        static member Create(connStr) =
-            let databaseName = System.Guid.NewGuid().ToString("n")
-            createDatabase (connStr |> string) databaseName
-
-            new DisposableDatabase(connStr, databaseName)
-
-        member x.SuperConn = superConn
-
-        member x.Conn =
-            let builder = x.SuperConn |> string |> NpgsqlConnectionStringBuilder
-            builder.Database <- x.DatabaseName
-            builder
-
-        member x.DatabaseName = databaseName
-
-        interface IDisposable with
-            member x.Dispose() =
-                dropDatabase (superConn |> string) databaseName
-
-    let getEnvOrDefault defaultVal str =
-        let envVar = System.Environment.GetEnvironmentVariable str
-        if String.IsNullOrEmpty envVar then defaultVal else envVar
+    member val Container = container
 
 
-    let host () =
-        "POSTGRES_HOST" |> getEnvOrDefault "localhost"
+    interface IDisposable with
+        member this.Dispose() =
+            this.Container.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously
 
-    let user () =
-        "POSTGRES_USER" |> getEnvOrDefault "postgres"
-
-    let pass () =
-        "POSTGRES_PASS" |> getEnvOrDefault "postgres"
-
-    let db () =
-        "POSTGRES_DB" |> getEnvOrDefault "postgres"
-
-    let superUserConnStr () =
-        createConnString (host ()) (user ()) (pass ()) (db ())
-
-    let getNewDatabase () =
-        let rec inner () =
-            try
-                superUserConnStr () |> DisposableDatabase.Create
-            with e ->
-                inner ()
-
-        inner ()
-
-    let getStore (database: DisposableDatabase) =
-        DocumentStore.For(fun options ->
-            options.Connection(database.Conn |> string)
-
-            options.Schema.For<Book>().ForeignKey<Author>(fun book -> book.AuthorId)
-            |> ignore)
+            this.Container.DisposeAsync().AsTask()
+            |> Async.AwaitTask
+            |> Async.RunSynchronously
 
 [<CLIMutable>]
 type Dog =
@@ -143,30 +104,31 @@ let newDog name favoriteChewToy =
       Name = name
       FavoriteChewToy = favoriteChewToy }
 
-let saveDog (store: IDocumentStore) (dog: Dog) =
-    use session = store.OpenSession()
-    session.Store(dog)
-    session.SaveChanges()
-    dog
-
-let saveDog' (store: IDocumentStore) =
-    let dog = newDog "Spark" "Macbook"
-    saveDog store dog
-
-open DatabaseTestHelpers
-
-let withDatabase f () =
-    use database = getNewDatabase ()
-    f database
-
-open System.Reflection
-open Microsoft.FSharp.Reflection
-
-let inline withDatabaseAndStore (f: _ -> _) =
+let withDatabaseAndStore (database: DisposableDatabase) (f: _ -> _) =
     async {
-        use database = getNewDatabase ()
-        use store = getStore database :> IDocumentStore
-        return! f (database, store)
+        let databaseName = Guid.NewGuid().ToString("n")
+        DatabaseTestHelpers.createDatabase database.Container.ConnectionString databaseName
+
+        let connectionString =
+            NpgsqlConnectionStringBuilder(
+                Host = database.Container.Hostname,
+                Port = database.Container.Port,
+                Username = database.Container.Username,
+                Password = database.Container.Password,
+                Database = databaseName
+            )
+            |> string
+
+        use store =
+            DocumentStore.For(fun options ->
+                options.Connection(connectionString)
+
+                options.Schema.For<Book>().ForeignKey<Author>(fun book -> book.AuthorId)
+                |> ignore)
+
+        let! result = f (database, store)
+        store.Advanced.Clean.DeleteAllDocuments()
+        return result
     }
 
 type ParameterizedTest<'a> =
@@ -178,90 +140,82 @@ let testCase' name test = ParameterizedTest.Sync(name, test)
 
 let testCaseAsync' name test = ParameterizedTest.Async(name, test)
 
-let inline testFixture'<'a> setup =
+let testFixture'<'a> setup =
+    let database = new DisposableDatabase() // TODO: FIGURE OUT HOW TO DISPOSE OF THIS PROPERLY.
+    database.Container.StartAsync() |> Async.AwaitTask |> Async.RunSynchronously
+
     Seq.map (fun (parameterizedTest: ParameterizedTest<'a>) ->
         match parameterizedTest with
         | Sync (name, test) ->
             testCase name
-            <| fun () -> test >> async.Return |> setup |> Async.RunSynchronously
-        | Async (name, test) -> testCaseAsync name <| setup test
-
-    )
-
-
-[<Tests>]
-let ``Litmus Tests`` =
-    testList
-        "litmus Tests"
-        [ yield!
-              testFixture
-                  withDatabase
-                  [ "Can create/destroy database", ignore
-                    "Can Save/Load Record",
-                    fun db ->
-                        use store = getStore db
-                        let expectedDog = saveDog' store
-
-                        use session2 = store.OpenSession()
-                        let actualDog = session2.Load<Dog>(expectedDog.Id)
-                        Expect.equal expectedDog actualDog "Same dog!" ] ]
+            <| fun () -> test >> async.Return |> setup database |> Async.RunSynchronously
+        | Async (name, test) -> testCaseAsync name <| setup database test)
 
 let exactlyOnceTests =
     [ testCase' "exactlyOne, Get Record Back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
+          let expectedDog = newDog "Sparky" "Macbook"
+
           use session = store.OpenSession()
+          session |> Session.storeSingle expectedDog
+          do session |> Session.saveChanges
+
           let actualDog = session |> Session.query<Dog> |> Queryable.exactlyOne
-          Expect.equal expectedDog actualDog "Should be one dog!"
+          Expect.equal expectedDog actualDog "Actual dog doesn't match our precious Sparky"
 
 
       testCase' "exactlyOne, Throws if more than one"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
+
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
-                  let _ = saveDog' store
-                  let _ = saveDog' store
                   use session = store.OpenSession()
-                  let actualDog = session |> Session.query<Dog> |> Queryable.exactlyOne
+                  newDog "Spark" "Macbook" |> session.Insert
+                  newDog "Sparky" "Macbooky" |> session.Insert
+                  session |> Session.saveChanges
+                  let _ = session |> Session.query<Dog> |> Queryable.exactlyOne
                   ())
-              "Should be too many dogs!"
+              "There are too many dogs!!!"
 
 
       testCase' "exactlyOne, Throws if none"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
                   use session = store.OpenSession()
                   let actualDog = session |> Session.query<Dog> |> Queryable.exactlyOne
                   ())
-              "Should be no dog!"
+              "There are too many dogs!!! I'm more of a cat person myself."
 
 
       testCaseAsync' "exactlyOneAsync, Get Record Back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
+              let expectedDog = newDog "Spark" "Macbook"
+
               use session = store.OpenSession()
+              session |> Session.storeSingle expectedDog
+              do! session |> Session.saveChangesAsync
               let! actualDog = session |> Session.query<Dog> |> Queryable.exactlyOneAsync
-              Expect.equal expectedDog actualDog "Should be one dog!"
+              Expect.equal expectedDog actualDog "There shouldn't be that many dogs!"
           }
       testCaseAsync' "exactlyOneAsync, Throws if more than one"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               do!
                   Expect.throwsTAsync<AggregateException>
                       (async {
-                          let _ = saveDog' store
-                          let _ = saveDog' store
                           use session = store.OpenSession()
-                          let! actualDog = session |> Session.query<Dog> |> Queryable.exactlyOneAsync
+                          newDog "Spark" "Macbook" |> session.Insert
+                          newDog "Sparky" "Macbooky" |> session.Insert
+                          session |> Session.saveChanges
+                          let! _ = session |> Session.query<Dog> |> Queryable.exactlyOneAsync
                           ()
                       })
                       "Should be too many dogs!"
-
           }
       testCaseAsync' "exactlyOneAsync, Throws if none"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               do!
                   Expect.throwsTAsync<AggregateException>
@@ -276,9 +230,12 @@ let exactlyOnceTests =
 
 let filterTests =
     [ testCase' "filter by, Get Record Back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
 
           let actualDog =
               session
@@ -286,12 +243,16 @@ let filterTests =
               |> Queryable.filter <@ fun d -> d.Name = "Spark" @>
               |> Queryable.head
 
-          Expect.equal expectedDog actualDog "Should be one dog!"
+          Expect.equal expectedDog actualDog "There shouldn't be that many dogs!"
       testCase' "filter IsOneOf"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
-          let names = [| expectedDog.Name; "Fido"; "Snape" |]
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
+
+          let names = [| expectedDog.Name; "Fido"; "Snape" |]
 
           let actualDog =
               session
@@ -299,12 +260,16 @@ let filterTests =
               |> Queryable.filter <@ fun d -> d.Name.IsOneOf(names) @>
               |> Queryable.head
 
-          Expect.equal expectedDog actualDog "Should be one dog!"
+          Expect.equal expectedDog actualDog "There shouldn't be that many dogs!"
       testCase' "filter IsOneOf not in list"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
-          let names = [| "Fido"; "Snape" |]
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
+
+          let names = [| "Fido"; "Snape" |]
 
           let actualDog =
               session
@@ -320,9 +285,12 @@ type User = { Name: string }
 
 let mapTests =
     [ testCase' "map, Get Name Back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
 
           let actualDog =
               session
@@ -330,12 +298,15 @@ let mapTests =
               |> Queryable.map (<@ fun s -> s.Name @>)
               |> Queryable.head
 
-          Expect.equal expectedDog.Name actualDog "Should be one dog!"
+          Expect.equal expectedDog.Name actualDog "There shouldn't be that many dogs!"
 
       testCase' "map to another type, Get User Back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
 
           let actualUser =
               session
@@ -350,22 +321,31 @@ let mapTests =
 
 let headTests =
     [ testCase' "head, single dog, Get Record Back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
+
           let actualDog = session |> Session.query<Dog> |> Queryable.head
           Expect.equal expectedDog actualDog "Should be a same dog!"
 
       testCase' "head, multiple dogs, get top record back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
-          let _ = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+
+          let expectedDog = newDog "Spark" "Macbook"
+          let otherDog = newDog "Sparky" "Lightning Bolt"
+
+          session |> Session.storeMany [| expectedDog; otherDog |]
+          session |> Session.saveChanges
+
           let actualDog = session |> Session.query<Dog> |> Queryable.head
           Expect.equal expectedDog actualDog "Should be a same dog!"
 
       testCase' "head, no dogs, throws exception"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
                   use session = store.OpenSession()
@@ -375,24 +355,28 @@ let headTests =
 
 
       testCaseAsync' "headAsync, single dog, Get Record Back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
               use session = store.OpenSession()
+              let expectedDog = newDog "Spark" "Macbook"
+              session |> Session.storeSingle expectedDog
+              session |> Session.saveChanges
               let! actualDog = session |> Session.query<Dog> |> Queryable.headAsync
               Expect.equal expectedDog actualDog "Should be a same dog!"
           }
       testCaseAsync' "headAsync, multiple dogs, get top record back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
-              let _ = saveDog' store
               use session = store.OpenSession()
+              let expectedDog = newDog "Spark" "Macbook"
+              session |> Session.storeSingle expectedDog
+              session.Insert(newDog "Sparky" "Lightning Bolt")
+              session |> Session.saveChanges
               let! actualDog = session |> Session.query<Dog> |> Queryable.headAsync
               Expect.equal expectedDog actualDog "Should be a same dog!"
           }
       testCaseAsync' "headAsync, no dogs, throws exception"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               do!
                   Expect.throwsTAsync<AggregateException>
@@ -404,90 +388,113 @@ let headTests =
                       "Should be no dog!"
           } ]
 
-
 let toListTests =
     [ testCase' "toList, single dog, get single back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
           Expect.contains actualDogs expectedDog "Should contain same dog!"
 
       testCase' "toList, multiple dogs, get multple back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
-          let expectedDog2 = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
+          use session = store.OpenSession()
+
+          let expectedDog = newDog "Spark" "Macbook"
+          let expectedDog2 = newDog "Sparky" "Lightning bolt"
+
+          session |> Session.storeSingle expectedDog
+          session.Insert(expectedDog2)
+
+          session |> Session.saveChanges
+
           use session = store.OpenSession()
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
           Expect.contains actualDogs expectedDog "Should contain same dog!"
           Expect.contains actualDogs expectedDog2 "Should contain same dog!"
 
       testCase' "toList, no dogs, get empty list"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
           Expect.isEmpty actualDogs "Should be no dogs!"
 
       testCaseAsync' "toListAsync, single dog, get single back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
               use session = store.OpenSession()
+
+              let expectedDog = newDog "Spark" "Macbook"
+              session |> Session.storeSingle expectedDog
+              session |> Session.saveChanges
+
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
               Expect.contains actualDogs expectedDog "Should contain same dog!"
           }
       testCaseAsync' "toListAsync, multiple dogs, get multple back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
-              let expectedDog2 = saveDog' store
               use session = store.OpenSession()
+              let expectedDog = newDog "Spark" "Macbook"
+              let expectedDog2 = newDog "Sparky" "Lightning bolt"
+              session |> Session.storeSingle expectedDog
+              session.Insert(expectedDog2)
+              session |> Session.saveChanges
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
               Expect.contains actualDogs expectedDog "Should contain same dog!"
               Expect.contains actualDogs expectedDog2 "Should contain same dog!"
           }
       testCaseAsync' "toListAsync, no dogs, get empty list"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               use session = store.OpenSession()
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
               Expect.isEmpty actualDogs "Should be no dogs!"
           } ]
 
-
 let CRUDTests =
     [ testCase' "loadByGuid, Get Some Record back"
-      <| fun (db, store) ->
-          let expectedDog = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let expectedDog = newDog "Spark" "Macbook"
+          session |> Session.storeSingle expectedDog
+          session |> Session.saveChanges
           let actualDog = session |> Session.loadByGuid<Dog> expectedDog.Id
           Expect.equal (Some expectedDog) actualDog "Same dog!"
       testCase' "loadByGuid, Get None Record back"
-      <| fun (db, store) ->
-          let _ = saveDog' store
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           use session = store.OpenSession()
+          let dog = newDog "Spark" "Macbook"
+          session.Insert(dog)
+          session |> Session.saveChanges
           let actualDog = session |> Session.loadByGuid<Dog> (Guid.NewGuid())
           Expect.equal None actualDog "Should be no dog!"
       testCaseAsync' "loadByGuidAsync, get Some record back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
               use session = store.OpenSession()
+              let expectedDog = newDog "Spark" "Macbook"
+              session |> Session.storeSingle expectedDog
+              session |> Session.saveChanges
               let! actualDog = session |> Session.loadByGuidAsync<Dog> expectedDog.Id
-
               Expect.equal (Some expectedDog) actualDog "Same dog!"
           }
       testCaseAsync' "loadByGuidAsync, get None record back"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              let expectedDog = saveDog' store
+              use session = store.OpenSession()
+              let dog = newDog "Spark" "Macbook"
+              session.Insert(dog)
+              session |> Session.saveChanges
               use session = store.OpenSession()
               let! actualDog = session |> Session.loadByGuidAsync<Dog> (Guid.NewGuid())
 
               Expect.equal None actualDog "Should be no dog!"
           }
       testCase' "storeSingle/saveChanges"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let sparky = newDog "Sparky" "Shoes"
 
           use session = store.OpenSession()
@@ -498,30 +505,32 @@ let CRUDTests =
 
 
       testCase' "storeMany/delete/saveChanges"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let sparky = newDog "Sparky" "Shoes"
           let spot = newDog "Spot" "Macbook"
 
           use session = store.OpenSession()
-          session |> Session.storeMany [ sparky; spot ]
+          session |> Session.storeSingle sparky
+          session |> Session.storeSingle spot
           session |> Session.saveChanges
+
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
-          Expect.contains actualDogs sparky "Should contain same dog!"
-          Expect.contains actualDogs spot "Should contain same dog!"
+          Expect.contains actualDogs sparky "Sequence should contain sparky."
+          Expect.contains actualDogs spot "Sequence should contain spot"
 
           session |> Session.deleteEntity spot
           session |> Session.saveChanges
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
-          Expect.contains actualDogs sparky "Should contain same dog!"
+          Expect.contains actualDogs sparky "Sequence should contain sparky."
 
           session |> Session.deleteByGuid<Dog> sparky.Id
           session |> Session.saveChanges
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
-          Expect.isEmpty actualDogs "Should be no more dogs"
+          Expect.isEmpty actualDogs "Sequence should be empty."
 
 
       testCase' "storeMany/deleteBy/saveChanges"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let sparky = newDog "Sparky" "Shoes"
           let spot = newDog "Spot" "Macbook"
 
@@ -538,7 +547,7 @@ let CRUDTests =
           Expect.contains actualDogs spot "Should contain same dog!"
 
       testCaseAsync' "storeSingle/saveChangesAsync"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               let sparky = newDog "Sparky" "Shoes"
 
@@ -550,7 +559,7 @@ let CRUDTests =
 
           }
       testCaseAsync' "storeMany/saveChangesAsync"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               let sparky = newDog "Sparky" "Shoes"
               let spot = newDog "Spot" "Macbook"
@@ -563,23 +572,20 @@ let CRUDTests =
               Expect.contains actualDogs spot "Should contain same dog!"
           } ]
 
-[<CLIMutableAttribute>]
-type Person = { Id: Guid; Name: string; Age: int }
-
 let newPerson name age =
     { Id = Guid.NewGuid()
       Name = name
       Age = age }
 
-let savePerson (store: #IDocumentStore) (person: Person) =
-    use session = store.OpenSession()
-    session.Store(person)
-    session.SaveChanges()
-    person
+// let savePerson (store: #IDocumentStore) (person: Person) =
+//     use session = store.OpenSession()
+//     session.Store(person)
+//     session |> Session.saveChanges
+//     person
 
 // let PatchTests =
 //     [ testCase' "patch and then set"
-//       <| fun (db, store) ->
+//       <| fun (db: DisposableDatabase, store: DocumentStore) ->
 //           let marcoPolo = newPerson "Marco Polo" 500
 //           let edittedMarco = { marcoPolo with Age = 200 }
 //           savePerson store marcoPolo |> ignore
@@ -595,7 +601,7 @@ let savePerson (store: #IDocumentStore) (person: Person) =
 //           Expect.equal (Some edittedMarco) actualMarco "Edited successfully"
 
 //       testCase' "patch and then increment"
-//       <| fun (db, store) ->
+//       <| fun (db: DisposableDatabase, store: DocumentStore) ->
 //           let marcoPolo = newPerson "Marco Polo" 500
 //           let edittedMarco1 = { marcoPolo with Age = 501 }
 //           let edittedMarco3 = { marcoPolo with Age = 503 }
@@ -612,7 +618,7 @@ let savePerson (store: #IDocumentStore) (person: Person) =
 //           Expect.equal (Some edittedMarco1) actualMarco "Edited successfully"
 
 //       testCase' "patch and then increment not by one"
-//       <| fun (db, store) ->
+//       <| fun (db: DisposableDatabase, store: DocumentStore) ->
 //           let marcoPolo = newPerson "Marco Polo" 500
 //           let edittedMarco3 = { marcoPolo with Age = 503 }
 //           savePerson store marcoPolo |> ignore
@@ -630,10 +636,9 @@ let savePerson (store: #IDocumentStore) (person: Person) =
 
 //       ]
 
-let LinQQueryTests =
+let linqQueryTests =
     [ testCase' "count, min, and max"
-      <| fun (db, store: IDocumentStore) ->
-
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
@@ -664,18 +669,16 @@ let LinQQueryTests =
           Expect.equal marcoPolo.Age youngest "Should be Marco Polo"
 
       testCase' "paging (skip and take)"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
           let magellan = newPerson "Ferdinand Magellan" 600
           let columbus = newPerson "Christopher Columbus" 550
+
           use session = store.OpenSession()
-
           let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
-
-          let peopleGeneric =
-              new System.Collections.Generic.List<Person>([ niccoloPolo; maffeoPolo; magellan ])
+          let peopleGeneric = people[1..3] |> List.toSeq
 
           session |> Session.storeMany people
           Session.saveChanges session
@@ -687,7 +690,7 @@ let LinQQueryTests =
           |> fun x -> Seq.iter (fun (p, db) -> Expect.equal p db "Same people (paging)") x
 
       testCase' "orderBy, orderByDescending, and thenBy"
-      <| fun (db, store) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
@@ -732,7 +735,7 @@ type personByNameParameter = { name: string }
 
 let sqlTests =
     [ testCase' "sql with string parameter"
-      <| fun (db, store: IDocumentStore) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
@@ -753,7 +756,7 @@ let sqlTests =
 
           Expect.equal person marcoPolo "Not marco"
       testCaseAsync' "sql with string paramter async"
-      <| fun (db, store: IDocumentStore) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
               let marcoPolo = newPerson "Marco Polo" 500
               let niccoloPolo = newPerson "Niccolo Polo" 800
@@ -778,7 +781,7 @@ let sqlTests =
 
 let includeTests =
     [ testCase' "include single related document."
-      <| fun (db, store: IDocumentStore) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let author = { Id = 1; Name = "John Doe" }
 
           let book =
@@ -806,7 +809,7 @@ let includeTests =
           Expect.equal bookAuthor (Some author) "Not the same author"
 
       testCase' "include list of related documents."
-      <| fun (db, store: IDocumentStore) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let authors = [ { Id = 1; Name = "John Doe" }; { Id = 2; Name = "Jane Doe" } ]
 
           let books =
@@ -838,7 +841,7 @@ let includeTests =
           Expect.equal (bookAuthors |> Seq.toList) authors "Not the same authors"
 
       testCase' "include dictionary of related documents."
-      <| fun (db, store: IDocumentStore) ->
+      <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let authors = [ { Id = 1; Name = "John Doe" }; { Id = 2; Name = "Jane Doe" } ]
 
           let books =
@@ -884,7 +887,6 @@ let ``API Tests`` =
                     yield! headTests
                     yield! toListTests
                     yield! CRUDTests
-                    // yield! PatchTests
-                    yield! LinQQueryTests
+                    yield! linqQueryTests
                     yield! sqlTests
                     yield! includeTests ] ]
