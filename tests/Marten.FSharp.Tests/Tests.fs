@@ -40,6 +40,13 @@ open Marten.PLv8
 open Marten.Linq
 open Npgsql
 
+type Author = { Id: int; Name: string }
+
+type Book =
+    { Id: int
+      AuthorId: int
+      Title: string }
+
 module DatabaseTestHelpers =
     open Weasel.Postgresql
 
@@ -119,7 +126,11 @@ module DatabaseTestHelpers =
         inner ()
 
     let getStore (database: DisposableDatabase) =
-        database.Conn |> string |> DocumentStore.For
+        DocumentStore.For(fun options ->
+            options.Connection(database.Conn |> string)
+
+            options.Schema.For<Book>().ForeignKey<Author>(fun book -> book.AuthorId)
+            |> ignore)
 
 [<CLIMutable>]
 type Dog =
@@ -765,6 +776,101 @@ let sqlTests =
               Expect.equal person marcoPolo "Not marco"
           } ]
 
+let includeTests =
+    [ testCase' "include single related document."
+      <| fun (db, store: IDocumentStore) ->
+          let author = { Id = 1; Name = "John Doe" }
+
+          let book =
+              { Id = 1
+                AuthorId = 1
+                Title = "The adventures of a mysterious man." }
+
+          use session = store.OpenSession()
+
+          session |> Session.storeSingle author
+          session |> Session.storeSingle book
+          Session.saveChanges session
+
+          use session2 = store.OpenSession()
+
+          let mutable bookAuthor: Author option = None
+
+          let bookFromDb =
+              session2
+              |> Session.query<Book>
+              |> Queryable.includeSingle <@ fun book -> book.AuthorId @> (fun value -> bookAuthor <- Some value)
+              |> Queryable.tryHead
+
+          Expect.equal bookFromDb (Some book) "Not the same book"
+          Expect.equal bookAuthor (Some author) "Not the same author"
+
+      testCase' "include list of related documents."
+      <| fun (db, store: IDocumentStore) ->
+          let authors = [ { Id = 1; Name = "John Doe" }; { Id = 2; Name = "Jane Doe" } ]
+
+          let books =
+              [ { Id = 1
+                  AuthorId = 1
+                  Title = "The adventures of a mysterious man." }
+
+                { Id = 2
+                  AuthorId = 2
+                  Title = "The adventures of a mysterious woman." } ]
+
+          use session = store.OpenSession()
+
+          session |> Session.storeMany authors
+          session |> Session.storeMany books
+          Session.saveChanges session
+
+          use session2 = store.OpenSession()
+
+          let bookAuthors = Collections.Generic.List<Author>()
+
+          let booksFromDb =
+              session2
+              |> Session.query<Book>
+              |> Queryable.includeList <@ fun book -> book.AuthorId @> bookAuthors
+              |> Queryable.toList
+
+          Expect.equal (booksFromDb |> Seq.toList) books "Not the same books"
+          Expect.equal (bookAuthors |> Seq.toList) authors "Not the same authors"
+
+      testCase' "include dictionary of related documents."
+      <| fun (db, store: IDocumentStore) ->
+          let authors = [ { Id = 1; Name = "John Doe" }; { Id = 2; Name = "Jane Doe" } ]
+
+          let books =
+              [ { Id = 1
+                  AuthorId = 1
+                  Title = "The adventures of a mysterious man." }
+
+                { Id = 2
+                  AuthorId = 2
+                  Title = "The adventures of a mysterious woman." } ]
+
+          use session = store.OpenSession()
+
+          session |> Session.storeMany authors
+          session |> Session.storeMany books
+          Session.saveChanges session
+
+          use session2 = store.OpenSession()
+
+          let bookAuthors = Collections.Generic.Dictionary<int, Author>()
+
+          let booksFromDb =
+              session2
+              |> Session.query<Book>
+              |> Queryable.includeDict <@ fun book -> book.AuthorId @> bookAuthors
+              |> Queryable.toList
+
+          Expect.equal (booksFromDb |> Seq.toList) books "Not the same books"
+          Expect.equal bookAuthors.Count 2 "Count is greater than or less than 2"
+          Expect.equal bookAuthors[1] authors[0] "Authors do not match"
+          Expect.equal bookAuthors[2] authors[1] "Authors do not match" ]
+
 [<Tests>]
 let ``API Tests`` =
     testList
@@ -780,4 +886,5 @@ let ``API Tests`` =
                     yield! CRUDTests
                     // yield! PatchTests
                     yield! LinQQueryTests
-                    yield! sqlTests ] ]
+                    yield! sqlTests
+                    yield! includeTests ] ]
