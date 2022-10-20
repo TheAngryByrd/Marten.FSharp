@@ -6,6 +6,7 @@ nuget Marten
 nuget Marten.PLv8
 nuget Npgsql
 nuget Expecto
+nuget Testcontainers 2.2.0-beta.3290165812 beta
 
 // [ FAKE GROUP ]
 group Build
