@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -37,10 +37,5 @@ jobs:
       run: |
         chmod +x ./build.sh
         ./build.sh
-      env:
-        CI: true
-    - name: Build Windows
-      if: runner.os == 'Windows'
-      run: ./build.cmd
       env:
         CI: true
