@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -24,17 +24,7 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Build macOS
-      if: runner.os == 'macOS'
-      run: |
-        brew install docker
-        colima start
-        chmod +x ./build.sh
-        ./build.sh
-      env:
-        CI: true
-    - name: Build Linux
-      if: runner.os == 'Linux'
+    - name: Build
       run: |
         chmod +x ./build.sh
         ./build.sh
