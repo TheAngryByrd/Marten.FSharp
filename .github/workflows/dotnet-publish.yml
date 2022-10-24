@@ -17,9 +17,9 @@ jobs:
 
     - name: FAKE Build
       env:
-        - NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-        - GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        - FAKE_DETAILED_ERRORS: true
+        NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FAKE_DETAILED_ERRORS: true
       run:  |
         chmod +x ./build.sh
         ./build.sh Publish
