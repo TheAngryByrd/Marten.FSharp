@@ -1,6 +1,3 @@
 FSharp.Core
 Expecto
 Testcontainers
-
-Microsoft.NET.Test.Sdk
-YoloDev.Expecto.TestSdk

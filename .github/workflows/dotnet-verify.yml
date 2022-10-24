@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -24,15 +24,9 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Build macOS/Linux
-      if: runner.os != 'Windows'
+    - name: Build
       run: |
         chmod +x ./build.sh
         ./build.sh
-      env:
-        CI: true
-    - name: Build Windows
-      if: runner.os == 'Windows'
-      run: ./build.cmd
       env:
         CI: true
