@@ -730,7 +730,6 @@ let initTargets () =
     // Ensure UpdateChangelog is called after DotnetRestore and before GenerateAssemblyInfo
     "DotnetRestore" ?=>! "UpdateChangelog"
     "UpdateChangelog" ?=>! "GenerateAssemblyInfo"
-    "UpdateChangelog" ==>! "PublishToNuGet"
 
     // "BuildDocs" ==>! "ReleaseDocs"
     // "BuildDocs" ?=>! "PublishToNuget"
