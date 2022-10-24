@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9B878C1A-A0C
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Marten.FSharp", "src\Marten.FSharp\Marten.FSharp.fsproj", "{FCEC3400-EFAC-4810-AECB-2FAE219FE6F3}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "build", "build\build.fsproj", "{5608C88A-350B-4B2E-A9F2-F0E568D5B2D5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,6 +30,10 @@ Global
 		{FCEC3400-EFAC-4810-AECB-2FAE219FE6F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FCEC3400-EFAC-4810-AECB-2FAE219FE6F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FCEC3400-EFAC-4810-AECB-2FAE219FE6F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5608C88A-350B-4B2E-A9F2-F0E568D5B2D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5608C88A-350B-4B2E-A9F2-F0E568D5B2D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5608C88A-350B-4B2E-A9F2-F0E568D5B2D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5608C88A-350B-4B2E-A9F2-F0E568D5B2D5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B9AEE248-41BD-439F-AD01-5F7F2FF68A28} = {3DAE07BF-48FA-48AD-950D-EBA220B1D5F9}
