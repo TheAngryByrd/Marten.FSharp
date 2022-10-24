@@ -24,11 +24,16 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Build macOS/Linux
+    - name: Build macOS
       if: runner.os == 'macOS'
       run: |
         colima start
-      if: runner.os != 'Windows'
+        chmod +x ./build.sh
+        ./build.sh
+      env:
+        CI: true
+    - name: Build Linux
+      if: runner.os == 'Linux'
       run: |
         chmod +x ./build.sh
         ./build.sh
