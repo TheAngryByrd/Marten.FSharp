@@ -1,12 +1,15 @@
 framework: net6.0
 source https://www.nuget.org/api/v2
 
-nuget FSharp.Core ~> 6.0
+nuget FSharp.Core
 nuget Marten
 nuget Marten.PLv8
 nuget Npgsql
 nuget Expecto
 nuget Testcontainers 2.2.0-beta.3290165812 beta
+nuget YoloDev.Expecto.TestSdk 0.12.13
+nuget Microsoft.NET.Test.Sdk 17.1.0
+nuget altcover ~> 8.2.825
 
 // [ FAKE GROUP ]
 group Build

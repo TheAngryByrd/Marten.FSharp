@@ -27,4 +27,6 @@ jobs:
         - GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         - FAKE_DETAILED_ERRORS: true
         - RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
-      run: dotnet run --project ./build/build.fsproj -- -t Release
+      run:  |
+        chmod +x ./build.sh
+        ./build.sh Release

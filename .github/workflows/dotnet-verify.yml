@@ -1,29 +1,38 @@
 name: .NET Verify
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    runs-on: ${{ matrix.os }}
+
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET
+    - uses: actions/checkout@v2
+    - name: Use .NET Core 3.1 SDK
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '3.1.x'
+    - name: Use .NET Core 5.0.x SDK
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '5.0.x'
+    - name: Use .NET Core global.json
       uses: actions/setup-dotnet@v3
       with:
         global-json-file: global.json
 
-    - name: Restore tools
-      run: dotnet tool restore
-      
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore
-
-    - name: Test
-      run: dotnet run --project tests/Marten.FSharp.Tests
+    - name: Build macOS/Linux
+      if: runner.os != 'Windows'
+      run: |
+        chmod +x ./build.sh
+        ./build.sh
+      env:
+        CI: true
+    - name: Build Windows
+      if: runner.os == 'Windows'
+      run: ./build.cmd
+      env:
+        CI: true

@@ -876,6 +876,7 @@ let includeTests =
 
 [<Tests>]
 let ``API Tests`` =
+    testSequenced <|
     testList
         "API Tests"
         [ yield!
