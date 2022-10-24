@@ -27,6 +27,7 @@ jobs:
     - name: Build macOS
       if: runner.os == 'macOS'
       run: |
+        brew install docker
         colima start
         chmod +x ./build.sh
         ./build.sh
