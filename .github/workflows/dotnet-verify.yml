@@ -25,6 +25,9 @@ jobs:
         global-json-file: global.json
 
     - name: Build macOS/Linux
+      if: runner.os == 'macOS'
+      run: |
+        colima start
       if: runner.os != 'Windows'
       run: |
         chmod +x ./build.sh
