@@ -15,18 +15,11 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Restore tools
-      run: dotnet tool restore
-      
-    - name: Restore dependencies
-      run: dotnet restore
-
     - name: FAKE Build
       env:
         - NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         - GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         - FAKE_DETAILED_ERRORS: true
-        - RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
       run:  |
         chmod +x ./build.sh
-        ./build.sh Release
+        ./build.sh Publish

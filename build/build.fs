@@ -704,10 +704,11 @@ let initTargets () =
     Target.create "GitHubRelease" githubRelease
     Target.create "FormatCode" formatCode
     Target.create "CheckFormatCode" checkFormatCode
-    Target.create "Release" ignore
+    Target.create "Release" ignore // For local
+    Target.create "Publish" ignore //For CI
     // Target.create "BuildDocs" buildDocs
     // Target.create "WatchDocs" watchDocs
-    Target.create "ReleaseDocs" releaseDocs
+    // Target.create "ReleaseDocs" releaseDocs
 
     //-----------------------------------------------------------------------------
     // Target Dependencies
@@ -736,18 +737,22 @@ let initTargets () =
     // "DotnetPack" ?=>! "BuildDocs"
     // "GenerateCoverageReport" ?=>! "ReleaseDocs"
 
+    "UpdateChangelog"
+    ==> "GitRelease"
+    ==>! "Release"
+
+
 
     "DotnetRestore"
     ==> "CheckFormatCode"
     ==> "DotnetBuild"
-    ==> "FSharpAnalyzers"
+    // ==> "FSharpAnalyzers"
     ==> "DotnetTest"
-    =?> ("GenerateCoverageReport", not disableCodeCoverage)
+    // =?> ("GenerateCoverageReport", not disableCodeCoverage)
     ==> "DotnetPack"
     ==> "PublishToNuGet"
-    ==> "GitRelease"
     ==> "GitHubRelease"
-    ==>! "Release"
+    ==>! "Publish"
 
     "DotnetRestore" ==>! "WatchTests"
 
