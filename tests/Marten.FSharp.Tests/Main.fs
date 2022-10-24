@@ -1,4 +1,5 @@
 module Marten.FSharp.Tests
+
 open Expecto
 
 [<EntryPoint>]
