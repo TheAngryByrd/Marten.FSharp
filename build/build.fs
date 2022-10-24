@@ -473,23 +473,13 @@ let fsharpAnalyzers _ =
         dotnet.fsharpAnalyzer id args)
 
 let dotnetTest ctx =
-    let excludeCoverage =
-        !!testsGlob |> Seq.map IO.Path.GetFileNameWithoutExtension |> String.concat "|"
+    let testDirectories = !!testsGlob |> Seq.map Path.getDirectory
 
-    let args =
-        [ "--no-build"
-          sprintf "/p:AltCover=%b" (not disableCodeCoverage)
-          sprintf "/p:AltCoverThreshold=%d" coverageThresholdPercent
-          sprintf "/p:AltCoverAssemblyExcludeFilter=%s" excludeCoverage
-          "/p:AltCoverLocalSource=true" ]
+    let args = [ "--no-build" ]
 
-    DotNet.test
-        (fun c ->
-
-            { c with
-                Configuration = configuration (ctx.Context.AllExecutingTargets)
-                Common = c.Common |> DotNet.Options.withAdditionalArgs args })
-        sln
+    for testDir in testDirectories do
+        dotnet.run (fun options -> { options with WorkingDirectory = testDir }) (String.concat " " args)
+        |> failOnBadExitAndPrint
 
 let generateCoverageReport _ =
     let coverageReports = !! "tests/**/coverage*.xml" |> String.concat ";"
