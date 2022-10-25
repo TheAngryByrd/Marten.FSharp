@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-beta006] - 2022-10-24
+
+### Changed
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+- Bring Marten.FSharp back to life [#30](https://github.com/TheAngryByrd/Marten.FSharp/pull/30) [#34](https://github.com/TheAngryByrd/Marten.FSharp/pull/34) [#35](https://github.com/TheAngryByrd/Marten.FSharp/pull/35) [#36](https://github.com/TheAngryByrd/Marten.FSharp/pull/36) [#38](https://github.com/TheAngryByrd/Marten.FSharp/pull/38) [#39](https://github.com/TheAngryByrd/Marten.FSharp/pull/39)
+- [Exposing Lambda Module](https://github.com/TheAngryByrd/Marten.FSharp/pull/37)
+
 ## [0.5.0-beta005] - 2022-10-24
 
 ### Changed
@@ -102,7 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Improve Patch API and added other Linq queries](https://github.com/TheAngryByrd/Marten.FSharp/pull/4) via @ibnuda
 - [Patch Functionality](https://github.com/TheAngryByrd/Marten.FSharp/pull/3) via @ibnuda
 
-[Unreleased]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.5.0-beta005...HEAD
+[Unreleased]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.5.0-beta006...HEAD
+[0.5.0-beta006]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.4.3...v0.5.0-beta006
 [0.5.0-beta005]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.4.3...v0.5.0-beta005
 [0.5.0-beta003]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.4.3...v0.5.0-beta003
 [0.5.0-beta002]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.4.3...v0.5.0-beta002
