@@ -579,7 +579,7 @@ let dotnetPack ctx =
         sln
 
 let publishToNuget _ =
-    allReleaseChecks ()
+    allPublishChecks ()
 
     Paket.push (fun c ->
         { c with
@@ -612,7 +612,7 @@ let gitRelease _ =
     Git.Branches.pushTag "" "origin" tag
 
 let githubRelease _ =
-    allReleaseChecks ()
+    allPublishChecks ()
 
     let token =
         match githubToken with
