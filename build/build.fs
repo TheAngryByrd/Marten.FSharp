@@ -58,7 +58,6 @@ let gitRepoName = "Marten.FSharp"
 
 let gitHubRepoUrl = sprintf "https://github.com/%s/%s" gitOwner gitRepoName
 
-let releaseBranch = "master"
 
 let tagFromVersionNumber versionNumber = sprintf "v%s" versionNumber
 
@@ -106,10 +105,11 @@ let failOnBadExitAndPrint (p: ProcessResult) =
         p.Errors |> Seq.iter Trace.traceError
         failwithf "failed with exitcode %d" p.ExitCode
 
+let isCI = lazy environVarAsBoolOrDefault "CI" false
+
 // CI Servers can have bizzare failures that have nothing to do with your code
 let rec retryIfInCI times fn =
-    match Environment.environVarOrNone "CI" with
-    | Some _ ->
+    if isCI.Value then
         if times > 1 then
             try
                 fn ()
@@ -117,12 +117,10 @@ let rec retryIfInCI times fn =
                 retryIfInCI (times - 1) fn
         else
             fn ()
-    | _ -> fn ()
+    else fn ()
 
-let isReleaseBranchCheck () =
-    if Git.Information.getBranchName "" <> releaseBranch then
-        failwithf "Not on %s.  If you want to release please switch to this branch." releaseBranch
-
+let isOnCI () =
+    if isCI.Value |> not then failwith "Not in CI"
 module Changelog =
 
     let isEmptyChange =
@@ -297,7 +295,7 @@ module FSharpAnalyzers =
 //         |> failOnBadExitAndPrint
 
 let allReleaseChecks () =
-    isReleaseBranchCheck ()
+    isOnCI ()
     Changelog.isChangelogEmpty ()
 
 //-----------------------------------------------------------------------------
@@ -661,7 +659,7 @@ let checkFormatCode _ =
 // let watchDocs _ = DocsTool.watch ()
 
 let releaseDocs ctx =
-    isReleaseBranchCheck () // Docs changes don't need a full release to the library
+    isOnCI () // Docs changes don't need a full release to the library
 
     Git.Staging.stageAll docsDir
     Git.Commit.exec "" (sprintf "Documentation release of version %s" latestEntry.NuGetVersion)
