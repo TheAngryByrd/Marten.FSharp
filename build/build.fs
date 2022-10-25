@@ -381,6 +381,7 @@ let updateChangelog ctx =
     let prereleaseChanges =
         prereleaseEntries
         |> List.collect (fun entry -> entry.Changes |> List.filter (not << Changelog.isEmptyChange))
+        |> List.distinct
 
     let assemblyVersion, nugetVersion = Changelog.parseVersions newVersion.AsString
     linkReferenceForLatestEntry <- Changelog.mkLinkReference newVersion changelog
