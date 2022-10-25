@@ -58,6 +58,7 @@ let gitRepoName = "Marten.FSharp"
 
 let gitHubRepoUrl = sprintf "https://github.com/%s/%s" gitOwner gitRepoName
 
+let releaseBranch = "master"
 
 let tagFromVersionNumber versionNumber = sprintf "v%s" versionNumber
 
@@ -117,10 +118,17 @@ let rec retryIfInCI times fn =
                 retryIfInCI (times - 1) fn
         else
             fn ()
-    else fn ()
+    else
+        fn ()
 
 let isOnCI () =
-    if isCI.Value |> not then failwith "Not in CI"
+    if not isCI.Value then
+        failwith "Not on CI. If you want to publish, please use CI."
+
+let isReleaseBranchCheck () =
+    if Git.Information.getBranchName "" <> releaseBranch then
+        failwithf "Not on %s.  If you want to release please switch to this branch." releaseBranch
+
 module Changelog =
 
     let isEmptyChange =
@@ -295,6 +303,10 @@ module FSharpAnalyzers =
 //         |> failOnBadExitAndPrint
 
 let allReleaseChecks () =
+    isReleaseBranchCheck ()
+    Changelog.isChangelogEmpty ()
+
+let allPublishChecks () =
     isOnCI ()
     Changelog.isChangelogEmpty ()
 
@@ -659,7 +671,7 @@ let checkFormatCode _ =
 // let watchDocs _ = DocsTool.watch ()
 
 let releaseDocs ctx =
-    isOnCI () // Docs changes don't need a full release to the library
+    isReleaseBranchCheck () // Docs changes don't need a full release to the library
 
     Git.Staging.stageAll docsDir
     Git.Commit.exec "" (sprintf "Documentation release of version %s" latestEntry.NuGetVersion)
@@ -728,6 +740,7 @@ let initTargets () =
     // Ensure UpdateChangelog is called after DotnetRestore and before GenerateAssemblyInfo
     "DotnetRestore" ?=>! "UpdateChangelog"
     "UpdateChangelog" ?=>! "GenerateAssemblyInfo"
+
 
     // "BuildDocs" ==>! "ReleaseDocs"
     // "BuildDocs" ?=>! "PublishToNuget"
