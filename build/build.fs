@@ -71,7 +71,6 @@ let mutable latestEntry =
     else
         changelog.LatestEntry
 
-let mutable linkReferenceForLatestEntry = ""
 let mutable changelogBackupFilename = ""
 
 let publishUrl = "https://www.nuget.org"
@@ -181,7 +180,8 @@ module Changelog =
 
             sprintf "[%s]: %s" newVersion.AsString linkTarget
 
-    let mkReleaseNotes (linkReference: string) (latestEntry: Changelog.ChangelogEntry) =
+    let mkReleaseNotes (latestEntry: Changelog.ChangelogEntry) =
+        let linkReference = mkLinkReference latestEntry.SemVer changelog
         if String.isNullOrEmpty linkReference then
             latestEntry.ToString()
         else
@@ -384,7 +384,6 @@ let updateChangelog ctx =
         |> List.distinct
 
     let assemblyVersion, nugetVersion = Changelog.parseVersions newVersion.AsString
-    linkReferenceForLatestEntry <- Changelog.mkLinkReference newVersion changelog
 
     let newEntry =
         Changelog.ChangelogEntry.New(
@@ -409,7 +408,7 @@ let updateChangelog ctx =
     newChangelog |> Changelog.save changelogFilename
 
     // Now update the link references at the end of the file
-    linkReferenceForLatestEntry <- Changelog.mkLinkReference newVersion changelog
+    let linkReferenceForLatestEntry = Changelog.mkLinkReference newVersion changelog
 
     let linkReferenceForUnreleased =
         sprintf "[Unreleased]: %s/compare/%s...%s" gitHubRepoUrl (tagFromVersionNumber newVersion.AsString) "HEAD"
@@ -565,7 +564,7 @@ let generateAssemblyInfo _ =
 let dotnetPack ctx =
     // Get release notes with properly-linked version number
     let releaseNotes =
-        latestEntry |> Changelog.mkReleaseNotes linkReferenceForLatestEntry
+        latestEntry |> Changelog.mkReleaseNotes
 
     let args =
         [ sprintf "/p:PackageVersion=%s" latestEntry.NuGetVersion
@@ -625,7 +624,7 @@ let githubRelease _ =
     let files = !!distGlob
     // Get release notes with properly-linked version number
     let releaseNotes =
-        latestEntry |> Changelog.mkReleaseNotes linkReferenceForLatestEntry
+        latestEntry |> Changelog.mkReleaseNotes
 
     GitHub.createClientWithToken token
     |> GitHub.draftNewRelease
