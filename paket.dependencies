@@ -14,8 +14,6 @@ group Build
     source https://www.nuget.org/api/v2
     storage: none
     nuget Expecto
-    nuget YoloDev.Expecto.TestSdk
-    nuget Microsoft.NET.Test.Sdk 15.7.2
     nuget Fake.IO.FileSystem 5.20.4
     nuget Fake.Core.Target 5.20.4
     nuget Fake.Core.ReleaseNotes 5.20.4
