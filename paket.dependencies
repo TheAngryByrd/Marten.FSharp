@@ -7,6 +7,7 @@ nuget Marten.PLv8
 nuget Npgsql
 nuget Expecto
 nuget Testcontainers
+nuget Testcontainers.PostgreSql
 nuget altcover ~> 8.2.825
 
 // [ FAKE GROUP ]
