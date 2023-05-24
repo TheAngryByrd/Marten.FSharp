@@ -1,11 +1,7 @@
 module Tests
 
-
 open Expecto
-open DotNet.Testcontainers
-open DotNet.Testcontainers.Builders
-open DotNet.Testcontainers.Containers
-open DotNet.Testcontainers.Configurations
+open Testcontainers.PostgreSql
 
 module Expecto =
     module Expect =
@@ -69,21 +65,15 @@ module DatabaseTestHelpers =
 
 type DisposableDatabase() =
     let container =
-        TestcontainersBuilder<PostgreSqlTestcontainer>()
-            .WithDatabase(
-                new PostgreSqlTestcontainerConfiguration(
-                    Database = "db",
-                    Username = "postgres",
-                    Password = "postgres",
-                    Port = 5432
-                )
-            )
+        PostgreSqlBuilder()
+            .WithDatabase("db")
+            .WithUsername("postgres")
+            .WithPassword("password")
+            .WithPortBinding(5432)
             .WithExposedPort(5432)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5432))
             .Build()
 
     member val Container = container
-
 
     interface IDisposable with
         member this.Dispose() =
@@ -107,15 +97,17 @@ let newDog name favoriteChewToy =
 let withDatabaseAndStore (database: DisposableDatabase) (f: _ -> _) =
     async {
         let databaseName = Guid.NewGuid().ToString("n")
-        DatabaseTestHelpers.createDatabase database.Container.ConnectionString databaseName
+        let connectionString = database.Container.GetConnectionString()
+        DatabaseTestHelpers.createDatabase connectionString databaseName
 
         let connectionString =
             NpgsqlConnectionStringBuilder(
                 Host = database.Container.Hostname,
-                Port = database.Container.Port,
-                Username = database.Container.Username,
-                Password = database.Container.Password,
-                Database = databaseName
+                Port = 5432,
+                Username = "postgres",
+                Password = "password",
+                Database = databaseName,
+                IncludeErrorDetail = true
             )
             |> string
 
@@ -127,7 +119,7 @@ let withDatabaseAndStore (database: DisposableDatabase) (f: _ -> _) =
                 |> ignore)
 
         let! result = f (database, store)
-        store.Advanced.Clean.DeleteAllDocuments()
+        do! store.Advanced.Clean.DeleteAllDocumentsAsync() |> Async.AwaitTask
         return result
     }
 
@@ -156,7 +148,7 @@ let exactlyOnceTests =
       <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
           let expectedDog = newDog "Sparky" "Macbook"
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           session |> Session.storeSingle expectedDog
           do session |> Session.saveChanges
 
@@ -169,7 +161,7 @@ let exactlyOnceTests =
 
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
-                  use session = store.OpenSession()
+                  use session = store.LightweightSession()
                   newDog "Spark" "Macbook" |> session.Insert
                   newDog "Sparky" "Macbooky" |> session.Insert
                   session |> Session.saveChanges
@@ -182,7 +174,7 @@ let exactlyOnceTests =
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
-                  use session = store.OpenSession()
+                  use session = store.LightweightSession()
                   let actualDog = session |> Session.query<Dog> |> Queryable.exactlyOne
                   ())
               "There are too many dogs!!! I'm more of a cat person myself."
@@ -193,7 +185,7 @@ let exactlyOnceTests =
           async {
               let expectedDog = newDog "Spark" "Macbook"
 
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               session |> Session.storeSingle expectedDog
               do! session |> Session.saveChangesAsync
               let! actualDog = session |> Session.query<Dog> |> Queryable.exactlyOneAsync
@@ -205,7 +197,7 @@ let exactlyOnceTests =
               do!
                   Expect.throwsTAsync<AggregateException>
                       (async {
-                          use session = store.OpenSession()
+                          use session = store.LightweightSession()
                           newDog "Spark" "Macbook" |> session.Insert
                           newDog "Sparky" "Macbooky" |> session.Insert
                           session |> Session.saveChanges
@@ -220,7 +212,7 @@ let exactlyOnceTests =
               do!
                   Expect.throwsTAsync<AggregateException>
                       (async {
-                          use session = store.OpenSession()
+                          use session = store.LightweightSession()
                           let! actualDog = session |> Session.query<Dog> |> Queryable.exactlyOneAsync
                           ()
                       })
@@ -231,7 +223,7 @@ let exactlyOnceTests =
 let filterTests =
     [ testCase' "filter by, Get Record Back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -246,7 +238,7 @@ let filterTests =
           Expect.equal expectedDog actualDog "There shouldn't be that many dogs!"
       testCase' "filter IsOneOf"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -263,7 +255,7 @@ let filterTests =
           Expect.equal expectedDog actualDog "There shouldn't be that many dogs!"
       testCase' "filter IsOneOf not in list"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -286,7 +278,7 @@ type User = { Name: string }
 let mapTests =
     [ testCase' "map, Get Name Back"
       <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -302,7 +294,7 @@ let mapTests =
 
       testCase' "map to another type, Get User Back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -322,7 +314,7 @@ let mapTests =
 let headTests =
     [ testCase' "head, single dog, Get Record Back"
       <| fun (db: DisposableDatabase, (store: DocumentStore)) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
 
           session |> Session.storeSingle expectedDog
@@ -333,7 +325,7 @@ let headTests =
 
       testCase' "head, multiple dogs, get top record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           let expectedDog = newDog "Spark" "Macbook"
           let otherDog = newDog "Sparky" "Lightning Bolt"
@@ -348,7 +340,7 @@ let headTests =
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           Expect.throwsT<InvalidOperationException>
               (fun _ ->
-                  use session = store.OpenSession()
+                  use session = store.LightweightSession()
                   let actualDog = session |> Session.query<Dog> |> Queryable.head
                   ())
               "Should be no dog!"
@@ -357,7 +349,7 @@ let headTests =
       testCaseAsync' "headAsync, single dog, Get Record Back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let expectedDog = newDog "Spark" "Macbook"
               session |> Session.storeSingle expectedDog
               session |> Session.saveChanges
@@ -367,7 +359,7 @@ let headTests =
       testCaseAsync' "headAsync, multiple dogs, get top record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let expectedDog = newDog "Spark" "Macbook"
               session |> Session.storeSingle expectedDog
               session.Insert(newDog "Sparky" "Lightning Bolt")
@@ -381,7 +373,7 @@ let headTests =
               do!
                   Expect.throwsTAsync<AggregateException>
                       (async {
-                          use session = store.OpenSession()
+                          use session = store.LightweightSession()
                           let! actualDog = session |> Session.query<Dog> |> Queryable.headAsync
                           ()
                       })
@@ -391,7 +383,7 @@ let headTests =
 let toListTests =
     [ testCase' "toList, single dog, get single back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
           session |> Session.storeSingle expectedDog
           session |> Session.saveChanges
@@ -400,7 +392,7 @@ let toListTests =
 
       testCase' "toList, multiple dogs, get multple back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           let expectedDog = newDog "Spark" "Macbook"
           let expectedDog2 = newDog "Sparky" "Lightning bolt"
@@ -410,21 +402,21 @@ let toListTests =
 
           session |> Session.saveChanges
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
           Expect.contains actualDogs expectedDog "Should contain same dog!"
           Expect.contains actualDogs expectedDog2 "Should contain same dog!"
 
       testCase' "toList, no dogs, get empty list"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
           Expect.isEmpty actualDogs "Should be no dogs!"
 
       testCaseAsync' "toListAsync, single dog, get single back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
 
               let expectedDog = newDog "Spark" "Macbook"
               session |> Session.storeSingle expectedDog
@@ -436,7 +428,7 @@ let toListTests =
       testCaseAsync' "toListAsync, multiple dogs, get multple back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let expectedDog = newDog "Spark" "Macbook"
               let expectedDog2 = newDog "Sparky" "Lightning bolt"
               session |> Session.storeSingle expectedDog
@@ -449,7 +441,7 @@ let toListTests =
       testCaseAsync' "toListAsync, no dogs, get empty list"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
               Expect.isEmpty actualDogs "Should be no dogs!"
           } ]
@@ -457,7 +449,7 @@ let toListTests =
 let CRUDTests =
     [ testCase' "loadByGuid, Get Some Record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let expectedDog = newDog "Spark" "Macbook"
           session |> Session.storeSingle expectedDog
           session |> Session.saveChanges
@@ -465,7 +457,7 @@ let CRUDTests =
           Expect.equal (Some expectedDog) actualDog "Same dog!"
       testCase' "loadByGuid, Get None Record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let dog = newDog "Spark" "Macbook"
           session.Insert(dog)
           session |> Session.saveChanges
@@ -474,7 +466,7 @@ let CRUDTests =
       testCaseAsync' "loadByGuidAsync, get Some record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let expectedDog = newDog "Spark" "Macbook"
               session |> Session.storeSingle expectedDog
               session |> Session.saveChanges
@@ -484,11 +476,11 @@ let CRUDTests =
       testCaseAsync' "loadByGuidAsync, get None record back"
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           async {
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let dog = newDog "Spark" "Macbook"
               session.Insert(dog)
               session |> Session.saveChanges
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               let! actualDog = session |> Session.loadByGuidAsync<Dog> (Guid.NewGuid())
 
               Expect.equal None actualDog "Should be no dog!"
@@ -497,7 +489,7 @@ let CRUDTests =
       <| fun (db: DisposableDatabase, store: DocumentStore) ->
           let sparky = newDog "Sparky" "Shoes"
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           session |> Session.storeSingle sparky
           session |> Session.saveChanges
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
@@ -509,7 +501,7 @@ let CRUDTests =
           let sparky = newDog "Sparky" "Shoes"
           let spot = newDog "Spot" "Macbook"
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           session |> Session.storeSingle sparky
           session |> Session.storeSingle spot
           session |> Session.saveChanges
@@ -534,7 +526,7 @@ let CRUDTests =
           let sparky = newDog "Sparky" "Shoes"
           let spot = newDog "Spot" "Macbook"
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           session |> Session.storeMany [ sparky; spot ]
           session |> Session.saveChanges
           let actualDogs = session |> Session.query<Dog> |> Queryable.toList
@@ -551,7 +543,7 @@ let CRUDTests =
           async {
               let sparky = newDog "Sparky" "Shoes"
 
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               session |> Session.storeSingle sparky
               do! session |> Session.saveChangesAsync
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
@@ -564,7 +556,7 @@ let CRUDTests =
               let sparky = newDog "Sparky" "Shoes"
               let spot = newDog "Spot" "Macbook"
 
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
               session |> Session.storeMany [ sparky; spot ]
               do! session |> Session.saveChangesAsync
               let! actualDogs = session |> Session.query<Dog> |> Queryable.toListAsync
@@ -578,7 +570,7 @@ let newPerson name age =
       Age = age }
 
 // let savePerson (store: #IDocumentStore) (person: Person) =
-//     use session = store.OpenSession()
+//     use session = store.LightweightSession()
 //     session.Store(person)
 //     session |> Session.saveChanges
 //     person
@@ -589,7 +581,7 @@ let newPerson name age =
 //           let marcoPolo = newPerson "Marco Polo" 500
 //           let edittedMarco = { marcoPolo with Age = 200 }
 //           savePerson store marcoPolo |> ignore
-//           use session = store.OpenSession()
+//           use session = store.LightweightSession()
 
 //           session
 //           |> Session.patchByGuid<Person> (marcoPolo.Id)
@@ -606,7 +598,7 @@ let newPerson name age =
 //           let edittedMarco1 = { marcoPolo with Age = 501 }
 //           let edittedMarco3 = { marcoPolo with Age = 503 }
 //           savePerson store marcoPolo |> ignore
-//           use session = store.OpenSession()
+//           use session = store.LightweightSession()
 
 //           session
 //           |> Session.patchByGuid<Person> (marcoPolo.Id)
@@ -623,7 +615,7 @@ let newPerson name age =
 //           let edittedMarco3 = { marcoPolo with Age = 503 }
 //           savePerson store marcoPolo |> ignore
 
-//           use session = store.OpenSession()
+//           use session = store.LightweightSession()
 
 //           session
 //           |> Session.patchByGuid<Person> (marcoPolo.Id)
@@ -642,7 +634,7 @@ let linqQueryTests =
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           session |> Session.storeMany [ marcoPolo; niccoloPolo; maffeoPolo ]
           Session.saveChanges session
@@ -676,7 +668,7 @@ let linqQueryTests =
           let magellan = newPerson "Ferdinand Magellan" 600
           let columbus = newPerson "Christopher Columbus" 550
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
           let people = [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
           let peopleGeneric = people[1..3] |> List.toSeq
 
@@ -696,7 +688,7 @@ let linqQueryTests =
           let maffeoPolo = newPerson "Maffeo Polo" 801
           let magellan = newPerson "Ferdinand Magellan" 600
           let columbus = newPerson "Christopher Columbus" 550
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           let people =
               [ marcoPolo; niccoloPolo; maffeoPolo; magellan; columbus ]
@@ -739,12 +731,12 @@ let sqlTests =
           let marcoPolo = newPerson "Marco Polo" 500
           let niccoloPolo = newPerson "Niccolo Polo" 800
           let maffeoPolo = newPerson "Maffeo Polo" 801
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           session |> Session.storeMany [ marcoPolo; niccoloPolo; maffeoPolo ]
           Session.saveChanges session
 
-          use session2 = store.OpenSession()
+          use session2 = store.LightweightSession()
           let personNameParameter = { name = "Marco Polo" }
 
           let person =
@@ -761,12 +753,12 @@ let sqlTests =
               let marcoPolo = newPerson "Marco Polo" 500
               let niccoloPolo = newPerson "Niccolo Polo" 800
               let maffeoPolo = newPerson "Maffeo Polo" 801
-              use session = store.OpenSession()
+              use session = store.LightweightSession()
 
               session |> Session.storeMany [ marcoPolo; niccoloPolo; maffeoPolo ]
               Session.saveChanges session
 
-              use session2 = store.OpenSession()
+              use session2 = store.LightweightSession()
               let personNameParameter = { name = "Marco Polo" }
 
               let! person =
@@ -789,13 +781,13 @@ let includeTests =
                 AuthorId = 1
                 Title = "The adventures of a mysterious man." }
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           session |> Session.storeSingle author
           session |> Session.storeSingle book
           Session.saveChanges session
 
-          use session2 = store.OpenSession()
+          use session2 = store.LightweightSession()
 
           let mutable bookAuthor: Author option = None
 
@@ -821,13 +813,13 @@ let includeTests =
                   AuthorId = 2
                   Title = "The adventures of a mysterious woman." } ]
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           session |> Session.storeMany authors
           session |> Session.storeMany books
           Session.saveChanges session
 
-          use session2 = store.OpenSession()
+          use session2 = store.LightweightSession()
 
           let bookAuthors = Collections.Generic.List<Author>()
 
@@ -853,13 +845,13 @@ let includeTests =
                   AuthorId = 2
                   Title = "The adventures of a mysterious woman." } ]
 
-          use session = store.OpenSession()
+          use session = store.LightweightSession()
 
           session |> Session.storeMany authors
           session |> Session.storeMany books
           Session.saveChanges session
 
-          use session2 = store.OpenSession()
+          use session2 = store.LightweightSession()
 
           let bookAuthors = Collections.Generic.Dictionary<int, Author>()
 
