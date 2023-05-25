@@ -28,3 +28,8 @@ group Build
     nuget Fake.BuildServer.GitHubActions 5.20.4
     nuget Argu
     nuget Octokit 0.48
+    nuget Microsoft.Build 17.3.2
+    nuget Microsoft.Build.Framework 17.3.2
+    nuget Microsoft.Build.Tasks.Core 17.3.2
+    nuget Microsoft.Build.Utilities.Core 17.3.2
+    nuget MSBuild.StructuredLogger 2.1.669
