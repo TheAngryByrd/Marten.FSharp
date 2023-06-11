@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2023-06-11
+
+### Changed
+- [Updates Marten](https://github.com/TheAngryByrd/Marten.FSharp/pull/43)  - Thanks @sheridanchris
+
 ## [0.6.1] - 2022-11-09
 
 ### Changed
@@ -138,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Improve Patch API and added other Linq queries](https://github.com/TheAngryByrd/Marten.FSharp/pull/4) via @ibnuda
 - [Patch Functionality](https://github.com/TheAngryByrd/Marten.FSharp/pull/3) via @ibnuda
 
-[Unreleased]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.0...v0.6.1
 [0.6.1-beta002]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.0...v0.6.1-beta002
 [0.6.1-beta001]: https://github.com/TheAngryByrd/Marten.FSharp/compare/v0.6.0...v0.6.1-beta001
